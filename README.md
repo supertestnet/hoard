@@ -37,7 +37,7 @@ James O'Bierne's [op_vault whitepaper](https://jameso.be/vaults.pdf) has a secti
 
 > Key deletion cannot be proved, so ensuring that the vault isn’t backdoored is more difficult.
 
-This seems solvable to any desired degree by using an N of N multisig to create the vault. If you are one of the signers and you delete your key, you can be certain the vault isn't backdoored.
+This seems solvable to any desired degree by using an N of N multisig to create the vault. If you are one of the signers and you delete your key, the vault isn't backdoored.
 
 > Once initiated, other deposits cannot (or should not) be sent to after the inital deposit.
 
