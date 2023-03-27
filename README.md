@@ -8,7 +8,7 @@ Create two private keys, Key1 and Key2
 Create utxo X which is locked to Key1 -- this is the "vault"
 Create (but do not sign) tx1 which spends utxo X to create utxo Y -- this is the "midstate"
 Utxo Y (the midstate) has 2 spending paths:
-(a) Key1 and Key2 can (together) spend the money immediately -- allowing for a "revaulting tx" (tx2) explained below
+(a) Key1 and Key2 can (together) spend the money immediately -- allowing for a "revaulting tx," tx2, explained below
 (b) Key2 can spend the money after a timelock -- allowing for an "unvaulting tx" that sends the money wherever you want
 Create and sign tx2 which spends Y according to the logic in (a)
 ---tx2 should send the money to utxo Z
