@@ -45,7 +45,7 @@ Since I view presigned transactions as equivalent to the private keys of covenan
 
 > The sensitive data that is necessary to store indefinitely grows linearly with the number of vaults created.
 
-Yes but this "problem" does not rise to signfiicance in my opinion. The data is a fixed amount per utxo, basically 200 presigned transactions per utxo. If you have millions of utxos, you might have to buy a hard drive, but if you're an exchange, that's not a significant addition to your operating expenses, especially for an optional feature. Not all users will want their utxos to be timelocked for 6 months before they can withdraw them so not all users of an exchange will a vault.
+Yes but this "problem" does not rise to signfiicance in my opinion. The data is a fixed amount per utxo, basically 200 presigned transactions per utxo. If you have millions of utxos, you might have to buy a hard drive, but if you're an exchange, that's not a significant addition to your operating expenses, especially for an optional feature. Not all users will want their utxos to be timelocked for 6 months before they can withdraw them so not all users of an exchange will want a vault.
 
 > The spend target for the vault is static, and presumably must correspond to some kind of hot (or “warm”) wallet.
 
