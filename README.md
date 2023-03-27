@@ -49,11 +49,11 @@ How? Just give the user a url to click where you generate a new vault address fo
 
 > Vault operations, namely recoveries and unvaultings, cannot be batched together
 
-This is mostly true, I don't know a good mitigation for this and it is unfortunate. So far this seems like the only meaningful tradeoff.
+Mostly true. I don't know a good mitigation for this and it is unfortunate. So far this seems like the only meaningful tradeoff.
 
 > Arbitrary vault withdrawal amounts are not possible after the structure of the vault is locked in by presigning.
 
-That is true but there is a decent mitigation: vault many small amounts. If you do that then you can unvault an arbitrary amount by unvaulting as many of the small amounts as you need to add up to the arbitrary amount. This has a tradeoff though because you have to pay a fee for each amount you want to unvault.
+True but there is a decent mitigation: vault many small amounts. If you do that then you can unvault an arbitrary amount by unvaulting as many of the small amounts as you need to add up to the arbitrary amount. This has a tradeoff though because you have to pay a fee for each amount you want to unvault.
 
 > Loss of control of that hot wallet necessitates sweeping all presigned transactions to the likely difficult-to-access recovery wallet.
 
