@@ -35,7 +35,7 @@ James O'Bierne's [op_vault whitepaper](https://jameso.be/vaults.pdf) has a secti
 
 > Key deletion cannot be proved, so ensuring that the vault isn’t backdoored is more difficult.
 
-This seems solvable to any desired degree by using an N of N multisig to create the vault. If you are one of the signers and you delete your key, you can achieve certain the vault isn't backdoored.
+This seems solvable to any desired degree by using an N of N multisig to create the vault. If you are one of the signers and you delete your key, you can be certain the vault isn't backdoored.
 
 > The custodian must not lose the presigned transactions, since there is no other way of spending the bitcoin.
 
