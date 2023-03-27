@@ -12,7 +12,7 @@ Utxo Y (the midstate) has 2 spending paths:
 ---this allows for a "revaulting tx," tx2, explained below
 (b) Key2 can (by itself) spend the money after a timelock
 ---this allows for an "unvaulting tx" that sends the money wherever you want
-Create and sign tx2 which spends Y according to the logic in (a)
+Create and sign tx2, the "recovery tx" from (a) which uses Key1 and Key2
 ---tx2 should send the money to utxo Z
 ---utxo Z should be a clone of utxo X and the subsequent logic
 ---except with a different Key1 and Key2
