@@ -39,11 +39,25 @@ James O'Bierne's [op_vault whitepaper](https://jameso.be/vaults.pdf) has a secti
 
 This seems solvable to any desired degree by using an N of N multisig to create the vault. If you are one of the signers and you delete your key, you can be certain the vault isn't backdoored.
 
-> The custodian must not lose the presigned transactions, since there is no other way of spending the bitcoin.
+> Once initiated, other deposits cannot (or should not) be sent to after the inital deposit.
 
-In my mental model, once you create a presigned transaction and throw away the key, the presigned transaction essentially *becomes* the private key. Like a private key, a presigned transaction is a piece of text that lets you spend some money. If bitcoin had covenants, the private key to a covenant-encumbered utxo would only *work* by forcing you to create predetermined outputs when you use it. That is also true with a presigned transaction: it works but it forces you to create predetermined outputs when you use it.
+I think this is equivalent to saying "but I want to reuse my vault address." That seems like a trivial non-problem. Just create a second vault address. Non-problem solved.
 
-Since I view presigned transactions as equivalent to the private keys of covenant-encumbered outputs, I read this sentence as essentially equivalent to this complaint: "Covenants are bad because if you lose your private keys you're totally screwed." -- "Presigned covenants are bad because if you lose your presigned transactions you're totally screwed." The answer is the same for both: the security model is "take care not to lose that piece of text."
+> This prevents e.g. exchanges from initiating vaults and then letting customers deposit directly into vaults at-will.
+
+How? Just give the user a url to click where you generate a new vault address for them. Bam, non-problem solved.
+
+> Vault operations, namely recoveries and unvaultings, cannot be batched together
+
+This is mostly true, I don't know a good mitigation for this and it is unfortunate. So far this seems like the only meaningful tradeoff.
+
+> Arbitrary vault withdrawal amounts are not possible after the structure of the vault is locked in by presigning.
+
+That is true but there is a decent mitigation: vault many small amounts. If you do that then you can unvault an arbitrary amount by unvaulting as many of the small amounts as you need to add up to the arbitrary amount. This has a tradeoff though because you have to pay a fee for each amount you want to unvault.
+
+> Loss of control of that hot wallet necessitates sweeping all presigned transactions to the likely difficult-to-access recovery wallet.
+
+This seems like a strange objection. "What if an unauthorized person gets your keys" is the whole reason vaults exist, and they offer this solution: if an unauthorized person tries to unvault your money, a timelock gives you an opportunity to stop them by revaulting your money. I think Bryan Bishop's model also lets you send the money to an "even colder" recovery wallet but I don't need to defend someone else's model.
 
 > The sensitive data that is necessary to store indefinitely grows linearly with the number of vaults created.
 
@@ -53,22 +67,8 @@ Yes but this "problem" does not rise to signfiicance in my opinion. The data is 
 
 I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a "mid state" where a certain public key can send the money anywhere after a timelock expires if the money was not "revaulted." If he is talking about the timelocked pubkey, that pubkey does not have to be hot or warm. It can be very very cold, created on the most offline device ever and only its pubkey exported for use in the vault contract. It's totally up to the user how cold that key is.
 
-> Loss of control of that hot wallet necessitates sweeping all presigned transactions to the likely difficult-to-access recovery wallet.
+> The custodian must not lose the presigned transactions, since there is no other way of spending the bitcoin.
 
-This seems like a strange objection. "What if an unauthorized person gets your keys" is the whole reason vaults exist, and they offer this solution: if an unauthorized person tries to unvault your money, a timelock gives you an opportunity to stop them by revaulting your money. I think Bryan Bishop's model also lets you send the money to an "even colder" recovery wallet but I don't need to defend someone else's model.
+In my mental model, once you create a presigned transaction and throw away the key, the presigned transaction essentially *becomes* the private key. Like a private key, a presigned transaction is a piece of text that lets you spend some money. If bitcoin had covenants, the private key to a covenant-encumbered utxo would only *work* by forcing you to create predetermined outputs when you use it. That is also true with a presigned transaction: it works but it forces you to create predetermined outputs when you use it.
 
-> Arbitrary vault withdrawal amounts are not possible after the structure of the vault is locked in by presigning.
-
-That is true but there is a decent mitigation: vault many small amounts. If you do that then you can unvault an arbitrary amount by unvaulting as many of the small amounts as you need to add up to the arbitrary amount. This has a tradeoff though because you have to pay a fee for each amount you want to unvault.
-
-> Vault operations, namely recoveries and unvaultings, cannot be batched together
-
-This is mostly true, I don't know a good mitigation for this and it is unfortunate. So far this seems like the only meaningful tradeoff.
-
-> Once initiated, other deposits cannot (or should not) be sent to after the inital deposit.
-
-I think this is equivalent to saying "but I want to reuse my vault address." That seems like a trivial non-problem. Just create a second vault address. Non-problem solved.
-
-> This prevents e.g. exchanges from initiating vaults and then letting customers deposit directly into vaults at-will.
-
-How? Just give the user a url to click where you generate a new vault address for them. Bam, non-problem solved.
+Since I view presigned transactions as equivalent to the private keys of covenant-encumbered outputs, I read this sentence as essentially equivalent to this complaint: "Covenants are bad because if you lose your private keys you're totally screwed." -- "Presigned covenants are bad because if you lose your presigned transactions you're totally screwed." The answer is the same for both: the security model is "take care not to lose that piece of text."
