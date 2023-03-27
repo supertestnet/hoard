@@ -31,7 +31,7 @@ If you make the timelock 6 months long and create 100 copies of this contract wh
 
 # Answering objections
 
-James O'Bierne's [op_vault whitepaper](https://jameso.be/vaults.pdf) has a section on "Precomputed vaults" on page 2. This is mostly designed to cover the tradeoffs of Bryan Bishop's "python vaults" implementation of vaults, which is similar to this one except he envisions utxo Z as being locked to a bitcoin address owned by a very-cold-storage "recovery wallet" instead of another copy of the vault. Most of the tradeoffs James discusses apply to my vault model as well so I will address them here.
+James O'Bierne's [op_vault whitepaper](https://jameso.be/vaults.pdf) has a section on "Precomputed vaults" on page 2. This is mostly designed to cover the tradeoffs of Bryan Bishop's "[python vaults](https://github.com/kanzure/python-vaults)" implementation of vaults, which is similar to this one except in Bryan's model, utxo Z locks the money to a bitcoin address owned by a very-cold-storage "recovery wallet" instead of another copy of the vault. Most of the tradeoffs James discusses apply to my vault model as well so I will address them here.
 
 > Key deletion cannot be proved, so ensuring that the vault isn’t backdoored is more difficult.
 
