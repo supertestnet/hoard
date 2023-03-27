@@ -41,7 +41,7 @@ This seems solvable to any desired degree by using an N of N multisig to create 
 
 In my mental model, once you create a presigned transaction and throw away the key, the presigned transaction essentially *becomes* the private key. Like a private key, a presigned transaction is a piece of text that lets you spend some money. If bitcoin had covenants, the private key to a covenant-encumbered utxo would only *work* by forcing you to create predetermined outputs when you use it. That is also true with a presigned transaction: it works but it forces you to create predetermined outputs when you use it.
 
-Since I view presigned transactions as equivalent to private keys to covenant-encumbered outputs, I read this sentence as essentially equivalent to this complaint: "Covenants are bad because if you lose your private keys you're totally screwed." -- "Presigned covenants are bad because if you lose your presigned transactions you're totally screwed." The answer is the same for both: the security model is "take care not to lose that piece of text."
+Since I view presigned transactions as equivalent to the private keys of covenant-encumbered outputs, I read this sentence as essentially equivalent to this complaint: "Covenants are bad because if you lose your private keys you're totally screwed." -- "Presigned covenants are bad because if you lose your presigned transactions you're totally screwed." The answer is the same for both: the security model is "take care not to lose that piece of text."
 
 > The sensitive data that is necessary to store indefinitely grows linearly with the number of vaults created.
 
