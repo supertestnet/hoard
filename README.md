@@ -53,7 +53,7 @@ I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a 
 
 > Loss of control of that hot wallet necessitates sweeping all presigned transactions to the likely difficult-to-access recovery wallet.
 
-This seems like a strange objection. "What if an unauthorized person gets your hot wallet" is the whole reason vaults exist, and they offer this solution: if an unauthorized person tries to unvault your money, a timelock gives you an opportunity to stop them by revaulting your money. I think Bryan Bishop's model also lets you send the money to an "even colder" recovery wallet but I don't need to defend someone else's model.
+This seems like a strange objection. "What if an unauthorized person gets your keys" is the whole reason vaults exist, and they offer this solution: if an unauthorized person tries to unvault your money, a timelock gives you an opportunity to stop them by revaulting your money. I think Bryan Bishop's model also lets you send the money to an "even colder" recovery wallet but I don't need to defend someone else's model.
 
 > Arbitrary vault withdrawal amounts are not possible after the structure of the vault is locked in by presigning.
 
