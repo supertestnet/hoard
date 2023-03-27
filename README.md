@@ -21,7 +21,7 @@ Save tx1, tx2, and Key2
 
 # How it works
 
-Until you broadcast tx1, your money is "in a vault." Tx1 is an "unvaulting transaction." It locks your money in a "midstate" -- utxo Y -- where only two things can happen: either you broadcast tx2, a "revaulting transaction" that just puts it into another vault (utxo Z) that is identical to the first one, or you wait for a timelock to expire and then use your money however you like with Key2.
+Until you broadcast tx1, your money is "in a vault." Tx1 is an "unvaulting transaction." It locks your money in a "midstate" -- utxo Y -- where only two things can happen: either you broadcast tx2, a "revaulting transaction" that just puts it into another vault that is identical to the first one, or you wait for a timelock to expire and then use your money however you like.
 
 Here is how this vault setup protects you from thieves: while your money is in the vault, a thief cannot take it because they cannot get Key1. You deleted Key1, so *you* don't even have it. The only things a thief can steal are your presigned transactions (tx1 and tx2) and Key2. Key2 does the thief no good by itself: they cannot use it to spend your money unless they first broadcast tx1 -- which puts your money in the midstate -- then wait for a timelock to expire, and hope you don't revault your money in the meantime via tx2, thus blocking the theft.
 
