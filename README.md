@@ -1,6 +1,14 @@
 # Hoard
 Bitcoin vaults without a soft fork
 
+# Vaults in three sentences
+
+You put your btc in a secure bitcoin address called a vault
+
+The only way out of the vault is through a 6 month timelock
+
+Or you can revault your btc if you think you're being robbed
+
 # Proposal
 
 ```
