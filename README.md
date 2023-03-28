@@ -58,13 +58,13 @@ Partly true except there is a decent mitigation: vault many small amounts. If yo
 
 This seems like a strange objection. "What if an unauthorized person gets your keys" is the whole reason vaults exist, and they offer this solution: if an unauthorized person tries to unvault your money, a timelock gives you an opportunity to stop them by revaulting your money. I think Bryan Bishop's model also lets you send the money to an "even colder" recovery wallet but I don't need to defend someone else's model.
 
-> The spend target for the vault is static, and presumably must correspond to some kind of hot (or “warm”) wallet.
-
-I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a midstate where a certain public key can send the money anywhere after a timelock expires if the money was not "revaulted." Since it can send the money anywhere it doesn't sound very "static" to me. But if by "static spend target" he means the midstate itself (the money has to through the midstate before it is fully unvaulted), my answer is this: the midstate pubkey does not have to be hot or warm. It can be very very cold, created on the most offline device ever and only its pubkey exported for use in the vault contract. It's totally up to the user how cold that key is.
-
 > The sensitive data that is necessary to store indefinitely grows linearly with the number of vaults created.
 
 True but this "problem" does not rise to signfiicance in my opinion. The data is a fixed amount per utxo, basically 200 presigned transactions per utxo. If you have millions of utxos, you might have to buy a hard drive, but if you're an exchange, that's not a significant addition to your operating expenses, especially for an optional feature. Not all users will want their utxos to be timelocked for 6 months before they can withdraw them so not all users of an exchange will want a vault.
+
+> The spend target for the vault is static, and presumably must correspond to some kind of hot (or “warm”) wallet.
+
+I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a midstate where a certain public key can send the money anywhere after a timelock expires if the money was not "revaulted." Since it can send the money anywhere it doesn't sound very "static" to me. But if by "static spend target" he means the midstate itself (the money has to through the midstate before it is fully unvaulted), my answer is this: the midstate pubkey does not have to be hot or warm. It can be very very cold, created on the most offline device ever and only its pubkey exported for use in the vault contract. It's totally up to the user how cold that key is.
 
 > The custodian must not lose the presigned transactions, since there is no other way of spending the bitcoin.
 
