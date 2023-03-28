@@ -52,7 +52,7 @@ True. I don't know a good mitigation for this and it is unfortunate. So far this
 
 > Arbitrary vault withdrawal amounts are not possible after the structure of the vault is locked in by presigning.
 
-True but there is a decent mitigation: vault many small amounts. If you do that then you can unvault an arbitrary amount by unvaulting as many of the small amounts as you need to add up to the arbitrary amount. This has a tradeoff though because you have to pay a fee for each amount you want to unvault.
+Partly true except there is a decent mitigation: vault many small amounts. If you do that then you can unvault an arbitrary amount by unvaulting as many of the small amounts as you need to add up to the arbitrary amount. This has a tradeoff though because you have to pay a fee for each amount you want to unvault.
 
 > Loss of control of that hot wallet necessitates sweeping all presigned transactions to the likely difficult-to-access recovery wallet.
 
