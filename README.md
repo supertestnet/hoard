@@ -22,7 +22,7 @@ Save tx1, tx2, and Key2
 
 # How it works
 
-Until you broadcast tx1, your money is "in a vault." Tx1 locks your money in a "midstate" -- utxo Y -- where only two things can happen: either you broadcast tx2, a "revaulting transaction" that just puts it into another vault that is identical to the first one, or you wait for a timelock to expire and then use your money however you like.
+Until you broadcast tx1, your money is "in a vault." Tx1 locks your money in a midstate -- utxo Y -- where only two things can happen: either you broadcast tx2, a "revaulting transaction" that just puts it into another vault that is identical to the first one, or you wait for a timelock to expire and then use your money however you like.
 
 Here is how this vault setup protects you from thieves: while your money is in the vault, a thief cannot take it because they cannot get Key1. You deleted Key1, so *you* don't even have it. The only things a thief can steal are your presigned transactions (tx1 and tx2) and Key2. Key2 does the thief no good by itself: they cannot use it to spend your money unless they first broadcast tx1 -- which puts your money in the midstate -- then wait for a timelock to expire, and hope you don't revault your money in the meantime via tx2, thus blocking the theft.
 
@@ -60,7 +60,7 @@ This seems like a strange objection. "What if an unauthorized person gets your k
 
 > The spend target for the vault is static, and presumably must correspond to some kind of hot (or “warm”) wallet.
 
-I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a "mid state" where a certain public key can send the money anywhere after a timelock expires if the money was not "revaulted." If he is talking about the timelocked pubkey, that pubkey does not have to be hot or warm. It can be very very cold, created on the most offline device ever and only its pubkey exported for use in the vault contract. It's totally up to the user how cold that key is.
+I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a midstate where a certain public key can send the money anywhere after a timelock expires if the money was not "revaulted." Since it can send the money anywhere it doesn't sound very "static" to me. But if by "static spend target" he means the midstate itself, the midstate pubkey does not have to be hot or warm. It can be very very cold, created on the most offline device ever and only its pubkey exported for use in the vault contract. It's totally up to the user how cold that key is.
 
 > The sensitive data that is necessary to store indefinitely grows linearly with the number of vaults created.
 
