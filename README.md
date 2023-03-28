@@ -60,7 +60,7 @@ This seems like a strange objection. "What if an unauthorized person gets your k
 
 > The spend target for the vault is static, and presumably must correspond to some kind of hot (or “warm”) wallet.
 
-I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a midstate where a certain public key can send the money anywhere after a timelock expires if the money was not "revaulted." Since it can send the money anywhere it doesn't sound very "static" to me. But if by "static spend target" he means the midstate itself, the midstate pubkey does not have to be hot or warm. It can be very very cold, created on the most offline device ever and only its pubkey exported for use in the vault contract. It's totally up to the user how cold that key is.
+I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a midstate where a certain public key can send the money anywhere after a timelock expires if the money was not "revaulted." Since it can send the money anywhere it doesn't sound very "static" to me. But if by "static spend target" he means the midstate itself (the money has to through the midstate before it is fully unvaulted), my answer is this: the midstate pubkey does not have to be hot or warm. It can be very very cold, created on the most offline device ever and only its pubkey exported for use in the vault contract. It's totally up to the user how cold that key is.
 
 > The sensitive data that is necessary to store indefinitely grows linearly with the number of vaults created.
 
