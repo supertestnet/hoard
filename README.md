@@ -14,8 +14,8 @@ Utxo Y (the midstate) has 2 spending paths:
 ---this allows for an "unvaulting tx" that sends the money wherever you want
 Create and sign tx2, i.e. the revaulting tx from (a)
 ---tx2 should send the money to utxo Z
----utxo Z should be a clone of utxo X and the subsequent logic
----except with a different Key1 and Key2
+---utxo Z should be nearly a clone of utxo X and the subsequent logic
+---the only difference is it should use a different Key1 and Key2
 Delete Key1
 Save tx1, tx2, and Key2
 ```
