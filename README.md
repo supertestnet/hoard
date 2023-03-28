@@ -64,7 +64,7 @@ I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a 
 
 > The sensitive data that is necessary to store indefinitely grows linearly with the number of vaults created.
 
-Yes but this "problem" does not rise to signfiicance in my opinion. The data is a fixed amount per utxo, basically 200 presigned transactions per utxo. If you have millions of utxos, you might have to buy a hard drive, but if you're an exchange, that's not a significant addition to your operating expenses, especially for an optional feature. Not all users will want their utxos to be timelocked for 6 months before they can withdraw them so not all users of an exchange will want a vault.
+True but this "problem" does not rise to signfiicance in my opinion. The data is a fixed amount per utxo, basically 200 presigned transactions per utxo. If you have millions of utxos, you might have to buy a hard drive, but if you're an exchange, that's not a significant addition to your operating expenses, especially for an optional feature. Not all users will want their utxos to be timelocked for 6 months before they can withdraw them so not all users of an exchange will want a vault.
 
 > The custodian must not lose the presigned transactions, since there is no other way of spending the bitcoin.
 
