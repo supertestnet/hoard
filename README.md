@@ -6,7 +6,7 @@ Bitcoin vaults without a soft fork
 ```
 Create two private keys, Key1 and Key2
 Create utxo X which is locked to Key1 -- this is the "vault"
-Create (but do not sign) tx1 which spends utxo X to create utxo Y -- this is the "midstate"
+Create and sign tx1 which spends utxo X to create utxo Y -- this is the "midstate"
 Utxo Y (the midstate) has 2 spending paths:
 (a) Key1 and Key2 can (together) spend the money immediately
 ---this allows for a "revaulting tx," tx2, explained below
@@ -16,7 +16,6 @@ Create and sign tx2, the "recovery tx" from (a) which uses Key1 and Key2
 ---tx2 should send the money to utxo Z
 ---utxo Z should be a clone of utxo X and the subsequent logic
 ---except with a different Key1 and Key2
-Sign tx1
 Delete Key1
 Save tx1, tx2, and Key2
 ```
