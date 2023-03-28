@@ -48,7 +48,7 @@ How? Just give the user a url to click where you generate a new vault address fo
 
 > Vault operations, namely recoveries and unvaultings, cannot be batched together
 
-Mostly true. I don't know a good mitigation for this and it is unfortunate. So far this seems like the only meaningful tradeoff.
+True. I don't know a good mitigation for this and it is unfortunate. So far this seems like the only meaningful tradeoff.
 
 > Arbitrary vault withdrawal amounts are not possible after the structure of the vault is locked in by presigning.
 
