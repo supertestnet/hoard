@@ -9,7 +9,7 @@ The only way out of the vault is through a 6 month timelock
 
 Or you can revault your btc if you think you're being robbed
 
-# Proposal for doing this without a softfork
+# Proposal for achieving this without a soft fork
 
 ```
 Create two private keys, Key1 and Key2
