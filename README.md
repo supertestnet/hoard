@@ -79,3 +79,20 @@ I'm not sure that my model corresponds exactly to Bryan Bishop's but mine has a 
 In my mental model, once you create a presigned transaction and throw away the key, the presigned transaction essentially *becomes* the private key. Like a private key, a presigned transaction is a piece of text that lets you spend some money. If bitcoin had covenants, the private key to a covenant-encumbered utxo would only work if you create predetermined outputs when you use it. That is also true with a presigned transaction: it works but it forces you to create predetermined outputs when you use it.
 
 Since I view presigned transactions as equivalent to the private keys of covenant-encumbered outputs, I read this sentence as essentially equivalent to this complaint: "Covenants are bad because if you lose your private keys you're totally screwed." -- "Presigned covenants are bad because if you lose your presigned transactions you're totally screwed." The answer is the same for both: the security model is "take care not to lose that piece of text."
+
+# Todo
+
+- [x] Add cpfp support
+- [x] Add midstate cpfp privkey to spending keys pdf
+- [x] Add revault cpfp privkey to covenant keys pdf
+- [x] Don't add last revault tx to covenantKeys array (it makes funds permanently irrecoverable)
+- [x] Add a balance display
+- [x] Add a deposit button
+- [ ] Add a watchtower
+- [ ] Make the timelock configurable
+- [ ] Make the number of revaults configurable
+- [ ] Allow partial withdrawals (by sending the remainder to a new vault)
+- [ ] Allow instant withdrawals to pre-approved destinations
+- [ ] Allow importing from export pdfs
+- [ ] Improve the user interface
+- [ ] When a utxo is withdrawn, remove its entry from vault.spendingKeys, vault.covenantKeys, vault.current_state, and vault.desired_state
