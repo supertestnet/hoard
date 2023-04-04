@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <!-- the line above, if uncommented, mostly makes a page mobile friendly without any further work needed, except it disables zoom on mobile -->
+    <script src="https://unpkg.com/@cmdcode/crypto-utils@1.6.4"></script>
+    <script src="https://unpkg.com/@cmdcode/tapscript@1.1.1"></script>
+    <script src="https://supertestnet.github.io/bitcoin-chess/js/qrcode.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+        font-size: 1.15rem;
+        font-family: Arial, sans-serif;
+      }
+      html {
+        max-width: 70ch;
+        padding: 3rem 1rem;
+        margin: auto;
+        line-height: 1.25;
+      }
+      h1 {
+        font-size: 2rem;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+      input {
+        line-height: 1.25;
+        width: 100%;
+        height: 1.8rem;
+        font-size: 1.15rem;
+        border: 1px solid grey;
+      }
+      .qr_container {
+        border: 1px solid black;
+        border-radius: 1rem;
+        padding: 1rem;
+        text-align: center;
+        word-wrap: break-word;
+        max-width: 22rem;
+        margin: auto;
+      }
+      .main_btn {
+        flex: 1 1 4rem;
+        margin: 0.5rem;
+      }
+      @media screen and (max-width: 600px) {
+      }
+    </style>
+    <script>
+      var $ = document.querySelector.bind( document );
+      var $$ = document.querySelectorAll.bind( document );
+      var url_params = new URLSearchParams( window.location.search );
+      var url_keys = url_params.keys();
+      var $_GET = {}
+      for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
+    </script>
+    <script>
+      function hexToBytes(hex) {
+        return Uint8Array.from(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
+      }
+
+      function bytesToHex(bytes) {
+        return bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, "0"), "");
+      }
+      function createQR(content) {
+        let dataUriPngImage = document.createElement("img"),
+        s = QRCode.generatePNG(content, {
+          ecclevel: "M",
+          format: "html",
+          fillcolor: "#FFFFFF",
+          textcolor: "#000000",
+          margin: 4,
+          modulesize: 8,
+        });
+        dataUriPngImage.src = s;
+        dataUriPngImage.id = "qr_code";
+        dataUriPngImage.style.maxWidth = "100%";
+        return dataUriPngImage;
+      }
+      async function postData( url, json, content_type = "", apikey = "" ) {
+        var rtext = "";
+        function inner_post( url, json, content_type = "", apikey = "" ) {
+          var xhttp = new XMLHttpRequest();
+          xhttp.open( "POST", url, true );
+          if ( content_type ) {
+            xhttp.setRequestHeader( `Content-Type`, content_type );
+          }
+          if ( apikey ) {
+            xhttp.setRequestHeader( `X-Api-Key`, apikey );
+          }
+          xhttp.send( json );
+          return xhttp;
+        }
+        var data = inner_post( url, json, content_type, apikey );
+        data.onerror = function( e ) {
+          rtext = "error";
+        }
+        async function isResponseReady() {
+          return new Promise( function( resolve, reject ) {
+            if ( rtext == "error" ) {
+              resolve( rtext );
+            }
+            if ( !data.responseText || data.readyState != 4 ) {
+              setTimeout( async function() {
+                var msg = await isResponseReady();
+                resolve( msg );
+              }, 50 );
+            } else {
+              resolve( data.responseText );
+            }
+          });
+        }
+        var returnable = await isResponseReady();
+        return returnable;
+      }
+      function reverseHexString( s ) {
+        return s.match(/[a-fA-F0-9]{2}/g).reverse().join('');
+      }
+      function getTxidFromRawTx( rawtx ) {
+        return reverseHexString( sha256( hexToBytes( sha256( hexToBytes( tapscript.Tx.encode( tapscript.Tx.decode( rawtx ), true ) ) ) ) ) );
+      }
+      function generatePDF( filename, html ) {
+        var opt = {
+          margin: 1,
+          filename: `${filename}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+          pagebreak: { before: [ '.pagebreak' ] },
+        };
+        html2pdf().set( opt ).from( html ).save();
+      }
+    </script>
+  </head>
+  <body>
+    <div class="home">
+      <h1>Welcome to hoard</h1>
+      <h2>Bitcoin vaults without a soft fork</h2>
+      <p>Please send money to this vault:</p>
+      <div class="vault"></div>
+    </div>
+    <div class="wallet"></div>
+    <script>
+      var vault = {
+        html: () => {
+          return `
+            <div class="qr_container">
+              <div class="vault_qr">${vault.qr}</div>
+              <div class="vault_address">${vault.vaultAddress}</div>
+            </div>
+          `;
+        },
+        vaultAddress: "",
+        qr: "",
+        privkey1: "",
+        privkey2: "",
+        current_state: [],
+        desired_state: [],
+        reused_pubkey: "",
+        spendingKeys: [],
+        covenantKeys: [],
+        setState: (callback) => {
+          callback();
+          vault.render();
+        },
+        render: () => {
+          $( ".vault" ).innerHTML = vault.html();
+        }
+      };
+      var wallet = {
+        html: () => {
+          var vaultStatus = "Secure&nbsp;✅";
+          if ( vault.current_state[ 0 ] && vault.current_state[ wallet.displayedCoin ] > vault.desired_state[ wallet.displayedCoin ] ) vaultStatus = "Danger&nbsp;⚠️";
+          var amt = 0;
+          var txid = "";
+          var vout = 0;
+          var options = ``;
+          var balance = 0;
+          vault.spendingKeys.forEach( function( utxo, index ) {
+            amt = Number( tapscript.Tx.decode( vault.spendingKeys[ index ][ vault.current_state[ index ] ][ "to_midstate" ] )[ "output" ][ 0 ][ "value" ] ) + ( 500 + 546 );
+            balance = balance + amt;
+            if ( wallet.displayedCoin != index ) {
+              options += `<option data-index="${index}">Deposit ${index + 1}: ${amt.toLocaleString()} sats</option>`;
+            } else {
+              options += `<option data-index="${index}" selected="selected">Deposit ${index + 1}: ${amt.toLocaleString()} sats</option>`;
+            }
+          });
+          return `
+            <div style="${wallet.display}">
+              <h1>Your vault</h1>
+              <div style="display: flex; justify-content: space-between;">
+                <div>
+                  <div>Status: ${vaultStatus}</div>
+                  <div>Balance: ${balance.toLocaleString()} sats</div>
+                </div>
+                <div style="display: flex; justify-content: center; align-items: center;">
+                  <button onclick="init();">+ Deposit</button>
+                </div>
+              </div>
+              <div>
+                <!-- <p style="word-wrap: break-word;">Utxo: babababababababababababababababababababababababababababababababa:0</p> -->
+                <p>Select a coin from your vault to manage it</p>
+                <select onchange='wallet.setState( () => wallet.displayedCoin = Number( this[ this.selectedIndex ].getAttribute( "data-index" ) ) );'>
+                  ${options}
+                </select>
+              </div>
+              <br>
+              <div style="display: flex; flex-wrap: wrap;"><button class="main_btn spend">Spend from deposit ${wallet.displayedCoin + 1}</button> <button class="main_btn watchtower">Interactive watchtower</button> <button class="main_btn theft">Simulate a theft attempt</button> <button class="main_btn export_spending_keys">Export deposit ${wallet.displayedCoin + 1}'s spending keys</button> <button class="main_btn export_covenant_keys">Export deposit ${wallet.displayedCoin + 1}'s covenant keys</button></div>
+            </div>
+          `;
+        },
+        watchtower: false,
+        displayedCoin: 0,
+        display: "display: none;",
+        setState: (callback) => {
+          callback();
+          wallet.render();
+        },
+        render: () => {
+          $( ".wallet" ).innerHTML = wallet.html();
+          $( ".spend" ).onclick = async function() {
+            destino_address = prompt( "Enter a bitcoin address" );
+            if ( !destino_address ) return;
+            destino = bytesToHex( tapscript.Address[ tapscript.Address.getType( destino_address )[ 0 ].toUpperCase() ].decode( destino_address ) );
+            var prefix = "";
+            if ( tapscript.Address.getType( destino_address )[ 0 ].toUpperCase() == "P2TR" ) prefix = "5120";
+            if ( tapscript.Address.getType( destino_address )[ 0 ].toUpperCase() == "P2W" && tapscript.Address[ tapscript.Address.getType( destino_address )[ 0 ].toUpperCase() ].decode( destino_address ).length == 32 ) prefix = "0020";
+            if ( tapscript.Address.getType( destino_address )[ 0 ].toUpperCase() == "P2W" && tapscript.Address[ tapscript.Address.getType( destino_address )[ 0 ].toUpperCase() ].decode( destino_address ).length == 20 ) prefix = "0014";
+            var txid = vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate_txid" ];
+            var to_midstate_txid = txid;
+            var vout = 0;
+            var amt = Number( tapscript.Tx.decode( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ] )[ "output" ][ 0 ][ "value" ] ) + ( 500 + 546 );
+            var current_midstate = tapscript.Tx.decode( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ] )[ "output" ][ 0 ][ "scriptPubKey" ].substring( 4 );
+            var privkey = vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "timelocked_privkey" ];
+            var KeyPair = cryptoUtils.KeyPair;
+            var seckey = new KeyPair( privkey );
+            var pubkey = seckey.pub.rawX;
+            var script = [
+              // '07E0',
+              'OP_2',
+              'OP_CHECKSEQUENCEVERIFY',
+              'OP_DROP',
+              pubkey,
+              'OP_CHECKSIG'
+            ];
+            var leaf = await tapscript.Tree.getLeaf( tapscript.Script.encode( script ) );
+            var [tapkey] = await tapscript.Tweak.getPubkey( vault.reused_pubkey, [leaf] );
+            var size_of_parent_and_child = ( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ].length / 2 ) + 300;
+            var desired_fee_rate = 3;
+            var fee_to_be_paid = 3 * size_of_parent_and_child;
+            var amount_to_ask_for = fee_to_be_paid + 546;
+            var cpfp_privkey = vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate_cpfp_privkey" ];
+            var KeyPair = cryptoUtils.KeyPair;
+            var cpfp_seckey = new KeyPair( cpfp_privkey );
+            var cpfp_pubkey = cpfp_seckey.pub.rawX;
+            var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, 'bcrt' );
+            var cpfp_txid = prompt( `To get the clock ticking, this app must broadcast a transaction that moves your funds from the vault to a timelocked bitcoin address. That transaction will cost transaction fees which cannot be taken from the value in your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then enter the txid of that transaction.` );
+            var cpfp_vout = prompt( `Enter the vout` );
+            cpfp_vout = Number( cpfp_vout );
+            var unvaulttx = {
+                version: 2,
+                input: [{
+                  txid: txid,
+                  vout: vout,
+                  prevout: {value: amt - ( 500 + 546 ), scriptPubKey: '5120' + current_midstate},
+                  sequence: 2,
+                  witness: []
+                },{
+                  txid: cpfp_txid,
+                  vout: cpfp_vout,
+                  prevout: {value: amount_to_ask_for, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                  sequence: 2,
+                  witness: []
+                }],
+                output: [{
+                  value: amt - ( 1000 + 546 + 546 ),
+                  scriptPubKey: prefix + destino
+                }],
+                locktime: 0
+            };
+            //the 0 below indicates the input I am signing for
+            var sig1 = await tapscript.Sig.taproot.sign( privkey, unvaulttx, 0, { extension: leaf } );
+            var sig2 = await tapscript.Sig.taproot.sign( cpfp_privkey, unvaulttx, 1 );
+            var cblock = await tapscript.Tree.getPath( vault.reused_pubkey, leaf );
+            unvaulttx.input[ 0 ].witness = [ sig1, script, cblock ];
+            unvaulttx.input[ 1 ].witness = [ sig2 ];
+            var rawtx = tapscript.Tx.encode( unvaulttx );
+            vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
+            alert( `Broadcast this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
+            alert( `Click OK when this transaction: ${to_midstate_txid} has 2 confirmations` );
+            alert( `Now broadcast this transaction to fully unvault your money: ${rawtx}` );
+          }
+          $( ".theft" ).onclick = async function() {
+            alert( `Broadcast this tx to simulate a theft, then click ok: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
+            vault.setState( () => vault.current_state[ wallet.displayedCoin ] = vault.current_state[ wallet.displayedCoin ] + 1 );
+            alert( `Oh no! Someone other than you started the unvaulting procedure so they probably have one of your private keys! Broadcast this transaction to revault your money, then click ok: ${vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ]}` );
+            var revault_txid = getTxidFromRawTx( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ] );
+            var size_of_parent_and_child = ( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ].length / 2 ) + 300;
+            var desired_fee_rate = 3;
+            var fee_to_be_paid = 3 * size_of_parent_and_child;
+            var amount_to_ask_for = fee_to_be_paid + 546;
+            var cpfp_privkey = vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault_cpfp_privkey" ];
+            var KeyPair = cryptoUtils.KeyPair;
+            var cpfp_seckey = new KeyPair( cpfp_privkey );
+            var cpfp_pubkey = cpfp_seckey.pub.rawX;
+            var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, 'bcrt' );
+            var cpfp_txid = prompt( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then enter the txid of that transaction.` );
+            var cpfp_vout = prompt( `Enter the vout` );
+            cpfp_vout = Number( cpfp_vout );
+            var cpfp_destino_address = prompt( `Also, the act of bumping your fee will create a tiny bitcoin utxo of 546 sats. Please enter a bitcoin address from a wallet where you'd like this tiny utxo to end up. (Do NOT use your vault address, use a hot wallet.)` );
+            var cpfp_destino = bytesToHex( tapscript.Address[ tapscript.Address.getType( cpfp_destino_address )[ 0 ].toUpperCase() ].decode( cpfp_destino_address ) );
+            var prefix = "";
+            if ( tapscript.Address.getType( cpfp_destino_address )[ 0 ].toUpperCase() == "P2TR" ) prefix = "5120";
+            if ( tapscript.Address.getType( cpfp_destino_address )[ 0 ].toUpperCase() == "P2W" && tapscript.Address[ tapscript.Address.getType( cpfp_destino_address )[ 0 ].toUpperCase() ].decode( cpfp_destino_address ).length == 32 ) prefix = "0020";
+            var cpfp_tx = {
+                version: 2,
+                input: [{
+                  txid: revault_txid,
+                  vout: 1,
+                  prevout: {value: 546, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                  witness: []
+                },{
+                  txid: cpfp_txid,
+                  vout: cpfp_vout,
+                  prevout: {value: amount_to_ask_for, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                  witness: []
+                }],
+                output: [{
+                  value: 546,
+                  scriptPubKey: prefix + cpfp_destino
+                }],
+                locktime: 0
+            };
+            //the 0 below indicates the input I am signing for
+            var sig1 = await tapscript.Sig.taproot.sign( cpfp_privkey, cpfp_tx, 0 );
+            var sig2 = await tapscript.Sig.taproot.sign( cpfp_privkey, cpfp_tx, 1 );
+            cpfp_tx.input[ 0 ].witness = [ sig1 ];
+            cpfp_tx.input[ 1 ].witness = [ sig2 ];
+            var rawtx = tapscript.Tx.encode( cpfp_tx );
+            alert( `Broadcast this transaction to bump the fee to put your money back in your vault: ${rawtx}` );
+            vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
+            alert( `Rest easy! 😌 Your money is in a different vault now and you alone can move it` );
+          }
+          $( ".export_spending_keys" ).onclick = async function() {
+            // spending keys = to_midstate & privkey & reused_pubkey
+            var spending_keys = [];
+            vault.spendingKeys[ wallet.displayedCoin ].forEach( function( item ) {
+              var object = {
+                "to_midstate": item[ "to_midstate" ],
+                "to_midstate_cpfp_privkey": item[ "to_midstate_cpfp_privkey" ],
+                "timelocked_privkey": item[ "timelocked_privkey" ],
+                "reused_pubkey": vault.reused_pubkey,
+              }
+              spending_keys.push( object );
+            });
+            var div = document.createElement( "div" );
+            div.style.textAlign = "center";
+            var string = JSON.stringify( spending_keys[ 0 ] );
+            var original_string = string;
+            var array = [];
+            string.split( "" ).forEach( function( letter ) {
+              array.push( letter + '&#8203;' );
+            });
+            string = array.join( "" );
+            var txid = tapscript.Tx.decode( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ] )[ "input" ][ 0 ][ "txid" ];
+            var array = [];
+            txid.split( "" ).forEach( function( letter ) {
+              array.push( letter + '&#8203;' );
+            });
+            txid = array.join( "" );
+            var vout = tapscript.Tx.decode( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ] )[ "input" ][ 0 ][ "vout" ];
+            div.innerHTML = `
+              <p>Spending keys for utxo ${txid}:${vout}. Store each page safely, separately, and privately. If someone who gets one gets all, your vault is useless. If they only get one or some, you can recover.</p>
+              <p>State 0</p>
+              <p>${string}</p>
+            `;
+            var qr = document.createElement( "div" );
+            qr.style.maxWidth = "40%";
+            qr.style.height = "10px";
+            qr.style.margin = "auto";
+            qr.append( createQR( original_string ) );
+            div.append( qr );
+            spending_keys.forEach( function( item, index ) {
+              if ( !index ) return;
+              var string = JSON.stringify( item );
+              var original_string = string;
+              var array = [];
+              string.split( "" ).forEach( function( letter ) {
+                array.push( letter + '&#8203;' );
+              });
+              string = array.join( "" );
+              div.innerHTML += `
+                <p class="pagebreak">State ${index}</p>
+                <p>${string}</p>
+              `;
+              var qr = document.createElement( "div" );
+              qr.style.maxWidth = "40%";
+              qr.style.height = "10px";
+              qr.style.margin = "auto";
+              qr.append( createQR( original_string ) );
+              div.style.textAlign = "center";
+              div.append( qr );
+            });
+            generatePDF( "spending_keys", div );
+          }
+          $( ".export_covenant_keys" ).onclick = async function() {
+            var div = document.createElement( "div" );
+            div.style.textAlign = "center";
+            var string = JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ 0 ] );
+            var original_string = string;
+            var array = [];
+            string.split( "" ).forEach( function( letter ) {
+              array.push( letter + '&#8203;' );
+            });
+            string = array.join( "" );
+            var txid = tapscript.Tx.decode( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ] )[ "input" ][ 0 ][ "txid" ];
+            var array = [];
+            txid.split( "" ).forEach( function( letter ) {
+              array.push( letter + '&#8203;' );
+            });
+            txid = array.join( "" );
+            var vout = tapscript.Tx.decode( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ] )[ "input" ][ 0 ][ "vout" ];
+            div.innerHTML = `
+              <p>Covenant keys for utxo ${txid}:${vout}. You can safely share all of these with others -- mostly. "Mostly" because no one can steal your money with these but they can burn some transaction fees and lock up your funds for a long time. You can share these with a watchtower so that, if your unvaulting procedure starts, they can contact you to ensure it's you. If not, they can broadcast a revaulting transaction and save you from theft.</p>
+              <p>State 0</p>
+              <p>${string}</p>
+            `;
+            var qr = document.createElement( "div" );
+            qr.style.maxWidth = "40%";
+            qr.style.height = "10px";
+            qr.style.margin = "auto";
+            qr.append( createQR( original_string ) );
+            div.append( qr );
+            vault.covenantKeys[ wallet.displayedCoin ].forEach( function( item, index ) {
+              if ( !index ) return;
+              var string = JSON.stringify( item );
+              var original_string = string;
+              var array = [];
+              string.split( "" ).forEach( function( letter ) {
+                array.push( letter + '&#8203;' );
+              });
+              string = array.join( "" );
+              div.innerHTML += `
+                <p class="pagebreak">State ${index}</p>
+                <p>${string}</p>
+              `;
+              var qr = document.createElement( "div" );
+              qr.style.maxWidth = "40%";
+              qr.style.height = "10px";
+              qr.style.margin = "auto";
+              qr.append( createQR( original_string ) );
+              div.style.textAlign = "center";
+              div.append( qr );
+            });
+            generatePDF( "covenant_keys", div );
+          }
+        }
+      };
+      var tempfunc = vault.render;
+      vault.render = () => {
+          tempfunc();
+          wallet.render();
+      }
+      async function getContract( privkey1, revault_txid, amt ) {
+        if ( !privkey1 ) privkey1 = bytesToHex( cryptoUtils.Noble.utils.randomPrivateKey() );
+        var privkey2 = bytesToHex( cryptoUtils.Noble.utils.randomPrivateKey() );
+        var privkey3 = bytesToHex( cryptoUtils.Noble.utils.randomPrivateKey() );
+        var privkey4 = bytesToHex( cryptoUtils.Noble.utils.randomPrivateKey() );
+        vault.setState( () => { vault.privkey1 = privkey1;vault.privkey2 = privkey2; } );
+        var KeyPair = cryptoUtils.KeyPair;
+        var seckey1 = new KeyPair( privkey1 );
+        var pubkey1 = seckey1.pub.rawX;
+        var seckey2 = new KeyPair( privkey2 );
+        var pubkey2 = seckey2.pub.rawX;
+        var seckey3 = new KeyPair( privkey3 );
+        var pubkey3 = seckey3.pub.rawX;
+        var seckey4 = new KeyPair( privkey4 );
+        var pubkey4 = seckey4.pub.rawX;
+        var script = [
+          // '07E0',
+          'OP_2',
+          'OP_CHECKSEQUENCEVERIFY',
+          'OP_DROP',
+          pubkey2,
+          'OP_CHECKSIG'
+        ];
+        var vaultAddress = tapscript.Tree.encodeAddress( pubkey1, 'bcrt' );
+        if ( !revault_txid ) console.log( "vault address:", vaultAddress );
+        var div = document.createElement( "div" );
+        div.append( createQR( vaultAddress ) );
+        vault.setState( () => { vault.vaultAddress = vaultAddress; vault.qr = div.innerHTML } );
+        //create the midstate address
+        var leaf = await tapscript.Tree.getLeaf( tapscript.Script.encode( script ) );
+        var [tapkey2] = await tapscript.Tweak.getPubkey( pubkey1, [leaf] );
+        var midstate = tapscript.Tree.encodeAddress( tapkey2, 'bcrt' );
+        decodedMidstate = tapscript.Tree.decodeAddress( midstate ).hex;
+
+        if ( revault_txid ) {
+          var txid = revault_txid;
+          var vout = 0;
+        } else {
+          var txid = prompt( "Enter the txid" );
+          var vout = prompt( "Enter the vout" );
+          vout = Number( vout );
+          var amt = prompt( "Enter the amount" );
+          amt = Number( amt );
+          vault.reused_pubkey = bytesToHex( pubkey1 );
+          if ( !txid ) return;
+          if ( !vout && vout !== 0 ) return;
+          if ( !amt ) return;
+        }
+        //create and sign a tx1 that sends the money to the midstate
+
+        var tomidtx = {
+            version: 2,
+            input: [{
+              txid: txid,
+              vout: vout,
+              prevout: {value: amt, scriptPubKey: '5120' + bytesToHex( pubkey1 )},
+              witness: []
+            }],
+            output: [{
+              value: amt - ( 500 + 546 ),
+              scriptPubKey: '5120' + decodedMidstate
+            },{
+              value: 546,
+              scriptPubKey: '5120' + bytesToHex( pubkey3 )
+            }],
+            locktime: 0
+        };
+
+        var sig1 = await tapscript.Sig.taproot.sign( seckey1.raw, tomidtx, 0 );
+        tomidtx.input[ 0 ].witness = [ sig1 ];
+        var rawtx = tapscript.Tx.encode( tomidtx );
+        var to_midstate_tx = rawtx;
+        var to_midstate_txid = getTxidFromRawTx( to_midstate_tx );
+        var txid = to_midstate_txid;
+        var vout = 0;
+        //create and sign a revaulting transaction i.e. tx2
+        destino = tapscript.Tree.decodeAddress( vault.vaultAddress ).hex;
+
+        var revaulttx = {
+            version: 2,
+            input: [{
+              txid: txid,
+              vout: vout,
+              prevout: {value: amt - ( 500 + 546 ), scriptPubKey: '5120' + decodedMidstate},
+              witness: []
+            }],
+            output: [{
+              value: amt - ( 1000 + 546 + 546 ),
+              scriptPubKey: '5120' + destino
+            },{
+              value: 546,
+              scriptPubKey: '5120' + bytesToHex( pubkey4 )
+            }],
+            locktime: 0
+        };
+        var tweakedpriv = await tapscript.Tweak.getSeckey( privkey1, [leaf] );
+        //the 0 below indicates the input I am signing for
+        var sig2 = await tapscript.Sig.taproot.sign( tweakedpriv, revaulttx, 0 );
+        revaulttx.input[ 0 ].witness = [ sig2 ];
+        var rawtx = tapscript.Tx.encode( revaulttx );
+        var revault_tx = rawtx;
+        var revault_txid = getTxidFromRawTx( revault_tx );
+        var object = {}
+        object[ "to_midstate" ] = to_midstate_tx;
+        object[ "to_midstate_txid" ] = to_midstate_txid;
+        object[ "revault" ] = revault_tx;
+        object[ "timelocked_privkey" ] = privkey2;
+        object[ "to_midstate_cpfp_privkey" ] = privkey3;
+        object[ "revault_cpfp_privkey" ] = privkey4;
+        object[ "revault_txid" ] = revault_txid;
+        object[ "amt" ] = amt;
+        return object;
+      }
+      async function init() {
+        $( '.home' ).style.display = "block";
+        wallet.setState( () => wallet.display = "display: none;" );
+        var object = await getContract();
+        if ( !object ) return;
+        vault.spendingKeys.push( [] );
+        vault.covenantKeys.push( [] );
+        vault.current_state.push( 0 );
+        vault.desired_state.push( 0 );
+        vault.spendingKeys[ vault.spendingKeys.length - 1 ].push( {"to_midstate":object[ "to_midstate" ],"timelocked_privkey":object[ "timelocked_privkey" ], "to_midstate_cpfp_privkey":object[ "to_midstate_cpfp_privkey" ]} );
+        vault.covenantKeys[ vault.covenantKeys.length - 1 ].push( {"revault":object[ "revault" ],"to_midstate_txid":object[ "to_midstate_txid" ], "revault_cpfp_privkey":object[ "revault_cpfp_privkey" ]} );
+        var i; for ( i=0; i<10; i++ ) {
+          var object = await getContract( vault.privkey1, object[ "revault_txid" ], object[ "amt" ] - ( 1000 + 546 + 546 ) );
+          vault.spendingKeys[ vault.spendingKeys.length - 1 ].push( {"to_midstate":object[ "to_midstate" ],"timelocked_privkey":object[ "timelocked_privkey" ], "to_midstate_cpfp_privkey":object[ "to_midstate_cpfp_privkey" ]} );
+          if ( i < 9 ) vault.covenantKeys[ vault.covenantKeys.length - 1 ].push( {"revault":object[ "revault" ],"to_midstate_txid":object[ "to_midstate_txid" ], "revault_cpfp_privkey":object[ "revault_cpfp_privkey" ]} );
+        }
+        vault.setState( () => {vault.privkey1 = "";vault.privkey2 = "";} );
+        $( '.home' ).style.display = "none";
+        wallet.setState( () => wallet.display = "display: block;" );
+        alert( `Success, your money is in the vault` );
+      }
+      init();
+    </script>
+  </body>
+</html>
