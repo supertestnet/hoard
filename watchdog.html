@@ -227,6 +227,42 @@
                     resolve( returnable );
                 });
             }
+            async function postData( url, json, content_type = "", apikey = "" ) {
+                var rtext = "";
+                function inner_post( url, json, content_type = "", apikey = "" ) {
+                    var xhttp = new XMLHttpRequest();
+                    xhttp.open( "POST", url, true );
+                    if ( content_type ) {
+                        xhttp.setRequestHeader( `Content-Type`, content_type );
+                    }
+                    if ( apikey ) {
+                        xhttp.setRequestHeader( `X-Api-Key`, apikey );
+                    }
+                    xhttp.send( json );
+                    return xhttp;
+                }
+                var data = inner_post( url, json, content_type, apikey );
+                data.onerror = function( e ) {
+                    rtext = "error";
+                }
+                async function isResponseReady() {
+                    return new Promise( function( resolve, reject ) {
+                        if ( rtext == "error" ) {
+                            resolve( rtext );
+                        }
+                        if ( !data.responseText || data.readyState != 4 ) {
+                            setTimeout( async function() {
+                                var msg = await isResponseReady();
+                                resolve( msg );
+                            }, 50 );
+                        } else {
+                            resolve( data.responseText );
+                        }
+                    });
+                }
+                var returnable = await isResponseReady();
+                return returnable;
+            }
             async function loopTilTxIsBroadcast( txid, network ) {
                 var txIsBroadcast = false;
                 async function isDataSetYet( data_i_seek ) {
@@ -235,7 +271,7 @@
                             setTimeout( async function() {
                                 console.log( "checking if tx is broadcast..." );
                                 async function txIsBroadcast( txid, network ) {
-                                    var tx = await getData( `https://blockstream.info/${network}api/tx/${txid}` );
+                                    var tx = await getData( `https://mempool.space/${network}api/tx/${txid}` );
                                     if ( tx == "Transaction not found" ) return;
                                     return true;
                                 }
