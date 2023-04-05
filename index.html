@@ -57,8 +57,16 @@
       var url_keys = url_params.keys();
       var $_GET = {}
       for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
-      var mempoolNetwork = "mainnet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
+      var mempoolNetwork = ""; //mainnet: "" testnet: "testnet/" signet: "signet/"
       var addyprefix = "bc"; //mainnet: "bc" testnet: "tb" signet: "tb"
+      if ( $_GET[ "network" ] == "testnet" ) {
+        mempoolNetwork = "testnet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
+        addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
+      }
+      if ( $_GET[ "network" ] == "signet" ) {
+        mempoolNetwork = "signet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
+        addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
+      }
     </script>
     <script>
       async function pushBTCpmt( rawtx, network ) {
