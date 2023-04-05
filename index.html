@@ -553,10 +553,14 @@
             var cpfp_seckey = new KeyPair( cpfp_privkey );
             var cpfp_pubkey = cpfp_seckey.pub.rawX;
             var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, addyprefix );
-            alert( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then click ok.` );
-            await loopTilAddressReceivesMoney(cpfp_address, true);
+            var second_cpfp_privkey = bytesToHex( cryptoUtils.Noble.utils.randomPrivateKey() );
+            var second_cpfp_seckey = new KeyPair( second_cpfp_privkey );
+            var second_cpfp_pubkey = second_cpfp_seckey.pub.rawX;
+            var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
+            alert( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address} to use for transaction fees. Then click ok.` );
+            await loopTilAddressReceivesMoney(second_cpfp_address, true);
             await waitSomeSeconds(2);
-            var txinfo = await addressReceivedMoneyInThisTx(cpfp_address);
+            var txinfo = await addressReceivedMoneyInThisTx(second_cpfp_address);
             var cpfp_txid = txinfo[0];
             var cpfp_vout = txinfo[1];
             var cpfp_amt = txinfo[2];
@@ -591,7 +595,7 @@
             };
             //the 0 below indicates the input I am signing for
             var sig1 = await tapscript.Sig.taproot.sign( cpfp_privkey, cpfp_tx, 0 );
-            var sig2 = await tapscript.Sig.taproot.sign( cpfp_privkey, cpfp_tx, 1 );
+            var sig2 = await tapscript.Sig.taproot.sign( second_cpfp_privkey, cpfp_tx, 1 );
             cpfp_tx.input[ 0 ].witness = [ sig1 ];
             cpfp_tx.input[ 1 ].witness = [ sig2 ];
             var rawtx = tapscript.Tx.encode( cpfp_tx );
