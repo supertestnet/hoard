@@ -62,10 +62,14 @@
       if ( $_GET[ "network" ] == "testnet" ) {
         mempoolNetwork = "testnet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
         addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
+        localStorage.clear();
+        alert( "Because you are running in testnet mode, your browser's local storage has been cleared" );
       }
       if ( $_GET[ "network" ] == "signet" ) {
         mempoolNetwork = "signet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
         addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
+        localStorage.clear();
+        alert( "Because you are running in signet mode, your browser's local storage has been cleared" );
       }
     </script>
     <script>
