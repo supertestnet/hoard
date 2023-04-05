@@ -297,7 +297,7 @@
             wallet.setState( () => wallet.displayedCoin = 0 );
           }
           $( ".watchtower" ).onclick = () => {
-            alert( `Click ok after you paste the following json object into a third party watchtower service (such as Guard Dog, which you can find here: ${"https://example.com"}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ 0 ] )}`)
+            alert( `Click ok after you paste the following json object into a third party watchtower service (such as Watchdog, which you can find here: ${"https://supertestnet.github.io/hoard/watchdog.html"}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ 0 ] )}`)
           }
           $( ".theft" ).onclick = async function() {
             alert( `Broadcast this tx to simulate a theft, then click ok: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
