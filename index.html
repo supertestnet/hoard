@@ -59,17 +59,25 @@
       for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
       var mempoolNetwork = ""; //mainnet: "" testnet: "testnet/" signet: "signet/"
       var addyprefix = "bc"; //mainnet: "bc" testnet: "tb" signet: "tb"
-      if ( $_GET[ "network" ] == "testnet" ) {
-        mempoolNetwork = "testnet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
-        addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
-        localStorage.clear();
-        alert( "Because you are running in testnet mode, your browser's local storage has been cleared" );
+      if ( $_GET[ "network" ] == "mainnet" ) {
+        mempoolNetwork = "";
+        addyprefix = "bc";
       }
       if ( $_GET[ "network" ] == "signet" ) {
-        mempoolNetwork = "signet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
-        addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
+        mempoolNetwork = "signet/";
+        addyprefix = "tb";
         localStorage.clear();
         alert( "Because you are running in signet mode, your browser's local storage has been cleared" );
+      }
+      if ( $_GET[ "network" ] == "regtest" ) {
+        mempoolNetwork = "signet/";
+        addyprefix = "bcrt";
+        localStorage.clear();
+        alert( "Because you are running in regtest mode, your browser's local storage has been cleared" );
+      }
+      if ( !$_GET[ "network" ] ) {
+        localStorage.clear();
+        alert( "Because you are running in testnet mode, your browser's local storage has been cleared. To run on mainnet, add ?network=mainnet to the url." );
       }
     </script>
     <script>
