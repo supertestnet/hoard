@@ -165,6 +165,7 @@
         covenantKeys: [],
         setState: (callback) => {
           callback();
+          localStorage[ "vault" ] = JSON.stringify( vault );
           vault.render();
         },
         render: () => {
@@ -176,8 +177,6 @@
           var vaultStatus = "Secure&nbsp;✅";
           if ( vault.current_state[ 0 ] && vault.current_state[ wallet.displayedCoin ] > vault.desired_state[ wallet.displayedCoin ] ) vaultStatus = "Danger&nbsp;⚠️";
           var amt = 0;
-          var txid = "";
-          var vout = 0;
           var options = ``;
           var balance = 0;
           vault.spendingKeys.forEach( function( utxo, index ) {
@@ -198,7 +197,7 @@
                   <div>Balance: ${balance.toLocaleString()} sats</div>
                 </div>
                 <div style="display: flex; justify-content: center; align-items: center;">
-                  <button onclick="init();">+ Deposit</button>
+                  <button onclick="init();">+&nbsp;Deposit</button>
                 </div>
               </div>
               <div>
@@ -209,7 +208,7 @@
                 </select>
               </div>
               <br>
-              <div style="display: flex; flex-wrap: wrap;"><button class="main_btn spend">Spend from deposit ${wallet.displayedCoin + 1}</button> <button class="main_btn watchtower">Interactive watchtower</button> <button class="main_btn theft">Simulate a theft attempt</button> <button class="main_btn export_spending_keys">Export deposit ${wallet.displayedCoin + 1}'s spending keys</button> <button class="main_btn export_covenant_keys">Export deposit ${wallet.displayedCoin + 1}'s covenant keys</button></div>
+              <div style="display: flex; flex-wrap: wrap;"><button class="main_btn spend">Withdraw deposit ${wallet.displayedCoin + 1}</button> <button class="main_btn watchtower">Interactive watchtower</button> <button class="main_btn theft">Simulate a theft attempt</button> <button class="main_btn export_spending_keys">Export deposit ${wallet.displayedCoin + 1}'s spending keys</button> <button class="main_btn export_covenant_keys">Export deposit ${wallet.displayedCoin + 1}'s covenant keys</button></div>
             </div>
           `;
         },
@@ -218,6 +217,7 @@
         display: "display: none;",
         setState: (callback) => {
           callback();
+          localStorage[ "wallet" ] = JSON.stringify( wallet );
           wallet.render();
         },
         render: () => {
@@ -293,6 +293,11 @@
             alert( `Broadcast this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
             alert( `Click OK when this transaction: ${to_midstate_txid} has 2 confirmations` );
             alert( `Now broadcast this transaction to fully unvault your money: ${rawtx}` );
+            vault.setState( () => {vault.desired_state.splice( wallet.displayedCoin, 1 );vault.current_state.splice( wallet.displayedCoin, 1 );vault.spendingKeys.splice( wallet.displayedCoin, 1 );vault.covenantKeys.splice( wallet.displayedCoin, 1 );} );
+            wallet.setState( () => wallet.displayedCoin = 0 );
+          }
+          $( ".watchtower" ).onclick = () => {
+            alert( `Click ok after you paste the following json object into a third party watchtower service (such as Guard Dog, which you can find here: ${"https://example.com"}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ 0 ] )}`)
           }
           $( ".theft" ).onclick = async function() {
             alert( `Broadcast this tx to simulate a theft, then click ok: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
@@ -599,7 +604,25 @@
         wallet.setState( () => wallet.display = "display: block;" );
         alert( `Success, your money is in the vault` );
       }
-      init();
+      if ( !localStorage[ "vault" ] ) {
+        init();
+      } else {
+        var vault2 = JSON.parse( localStorage[ "vault" ] );
+        vault.vaultAddress = vault2.vaultAddress;
+        vault.qr = vault2.qr;
+        vault.privkey1 = vault2.privkey1;
+        vault.privkey2 = vault2.privkey2;
+        vault.current_state = vault2.current_state;
+        vault.desired_state = vault2.desired_state;
+        vault.reused_pubkey = vault2.reused_pubkey;
+        vault.spendingKeys = vault2.spendingKeys;
+        vault.covenantKeys = vault2.covenantKeys;
+        var wallet2 = JSON.parse( localStorage[ "wallet" ] );
+        wallet.watchtower = wallet2.watchtower;
+        wallet.displayedCoin = wallet2.displayedCoin;
+        $( '.home' ).style.display = "none";
+        wallet.setState( () => wallet.display = "display: block;" );
+      }
     </script>
   </body>
 </html>
