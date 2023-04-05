@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no" />
+        <!-- the line above, if uncommented, mostly makes a page mobile friendly without any further work needed, except it disables zoom on mobile -->
+        <script src="https://bundle.run/bech32@2.0.0"></script>
+        <script src="https://bitcoincore.tech/apps/bitcoinjs-ui/lib/bitcoinjs-lib.js"></script>
+        <script src="https://bundle.run/noble-secp256k1@1.2.14"></script>
+        <script src="https://bundle.run/browserify-cipher@1.0.1"></script>
+        <style>
+            * {
+                box-sizing: border-box;
+                font-size: 1.15rem;
+                font-family: Arial, sans-serif;
+            }
+            html {
+                max-width: 70ch;
+                padding: 3rem 1rem;
+                margin: auto;
+                line-height: 1.25;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            .text_input, textarea {
+                line-height: 1.25;
+                width: 100%;
+                height: 1.8rem;
+                font-size: 1.15rem;
+                border: 1px solid grey;
+            }
+            textarea {
+                height: auto;
+            }
+            @media screen and (max-width: 600px) {
+            }
+        </style>
+        <script>
+            var $ = document.querySelector.bind( document );
+            var $$ = document.querySelectorAll.bind( document );
+            var url_params = new URLSearchParams( window.location.search );
+            var url_keys = url_params.keys();
+            var $_GET = {}
+            for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
+        </script>
+    </head>
+    <body>
+        <h1>Welcome to Guard Dog</h1>
+        <h3>The world's best watchtower service for bitcoin vaults</h3>
+        <p>Please enter a "covenant keys" json exported from your vault</p>
+        <textarea rows="10"></textarea>
+        <p>Also please enter a nostr pubkey where you'd like to receive a dm if we detect an unvaulting attempt</p>
+        <p><input class="text_input nostr_pubkey" placeholder="npub1..."></p>
+        <p>Enter a nostr relay that you use to send and receive messages</p>
+        <p><input class="text_input nostr_relay" placeholder="wss://relay.example.com"></p>
+        <p>Select which network you want us to listen on</p>
+        <form>
+            <input type="radio" id="mainnet/" name="network"><label for="mainnet/">bitcoin mainnet</label><br>
+            <input type="radio" id="signet/" name="network"><label for="signet/">bitcoin signet</label><br>
+            <input type="radio" id="testnet/" name="network"><label for="testnet/">bitcoin testnet</label><br>
+        </form>
+        <p>If we detect an unvault attempt, we will reach out to you on nostr to ask if it was you. How long should we wait for a response before broadcasting your revault transaction?</p>
+        <form>
+            <input type="radio" id="1_minute" name="timelength"><label for="1_minute">1 minute</label><br>
+            <input type="radio" id="1_hour" name="timelength"><label for="1_hour">1 hour</label><br>
+            <input type="radio" id="1_day" name="timelength"><label for="1_day">1 day</label><br>
+            <input type="radio" id="1_week" name="timelength"><label for="1_week">1 week</label><br>
+            <input type="radio" id="1_month" name="timelength"><label for="1_month">1 month</label><br>
+        </form>        
+        <p><button>Submit</button></p>
+        <script>
+            $( 'button' ).onclick = async () => {
+                var json = $( 'textarea' ).value;
+                if ( !isValidJson( json ) ) {
+                    alert( "Please enter valid json" );
+                    return;
+                }
+                if ( !isBech32( $( '.nostr_pubkey' ).value ) ) {
+                    alert( "Please enter a valid nostr npub" );
+                    return;
+                }
+                var pubkey = pubkeyFromNpub( $( '.nostr_pubkey' ).value );
+                if ( pubkey.length != 64 || !isHex( pubkey ) ) {
+                    alert( "Please enter a valid nostr npub" );
+                    return;
+                }
+                var relay = $( '.nostr_relay' ).value;
+                if ( !isStringUrl( relay ) || !relay.startsWith( "wss://" ) ) {
+                    alert( "Please enter a valid nostr relay and be sure it starts with wss://" );
+                    return;
+                }
+                if ( !$('input[name="network"]:checked') ) {
+                    alert( "Please select a network. If you don't know, try mainnet." );
+                    return;
+                }
+                if ( !$('input[name="timelength"]:checked') ) {
+                    alert( "Please select a length of time" );
+                    return;
+                }
+                json = JSON.parse( json );
+                if ( !json.revault || !json.to_midstate_txid ) {
+                    alert( "Please enter a valid covenant keys object" );
+                    return;
+                }
+                var network = $('input[name="network"]:checked').id;
+                if ( network == "mainnet/" ) network = "";
+                var display_timelength = $('input[name="timelength"]:checked').id.replace( "_", " " );
+                alert( `Success! Once you click ok, this app will watch out for someone trying to unvault your money. If it sees that happening, it will notify you via nostr to ensure it’s you. If it’s not you (or you don’t respond), it will broadcast your revault transaction.` );
+                // await loopTilTxIsBroadcast( json[ "to_midstate_txid" ], network );
+                sendWarning( relay, network, json[ "to_midstate_txid" ], json.revault, pubkey, display_timelength );
+                if ( display_timelength == "1 minute" ) real_timelength = 60;
+                if ( display_timelength == "1 hour" ) real_timelength = 60 * 60;
+                if ( display_timelength == "1 day" ) real_timelength = 60 * 60 * 24;
+                if ( display_timelength == "1 week" ) real_timelength = 60 * 60 * 7;
+                if ( display_timelength == "1 month" ) real_timelength = 60 * 60 * 30;
+                var do_not_send = await getNoteUnlessItTimesOut( "do_not_send", real_timelength );
+                if ( !do_not_send ) {
+                    await pushBTCpmt( json.revault, network );
+                    alert( `ok we broadcasted this tx so your money should be safe now: ${json.revault}` );
+                } else {
+                    alert( `You replied so we will not revault` );
+                }
+            }
+            sessionStorage[ "do_not_send" ] = "";
+            async function getNoteUnlessItTimesOut( item, num_of_seconds_to_wait ) {
+                var started_waiting_time = Math.floor( Date.now() / 1000 );
+                async function isNoteSetYet( note_i_seek ) {
+                    return new Promise( function( resolve, reject ) {
+                        if ( !note_i_seek ) {
+                            var current_time = Math.floor( Date.now() / 1000 );
+                            if ( started_waiting_time + num_of_seconds_to_wait < current_time ) {
+                                resolve( "" );
+                            }
+                            setTimeout( async function() {
+                                var msg = await isNoteSetYet( sessionStorage[ item ] );
+                                resolve( msg );
+                            }, 100 );
+                        } else {
+                            resolve( note_i_seek );
+                        }
+                    });
+                }
+                async function getTimeoutData() {
+                    var note_i_seek = await isNoteSetYet( sessionStorage[ item ] );
+                    return note_i_seek;
+                }
+                var returnable = await getTimeoutData();
+                return returnable;
+            }
+            function isValidJson( content ) {
+                if ( !content ) return;
+                try {  
+                    var json = JSON.parse( content );
+                } catch ( e ) {
+                    return;
+                }
+                return true;
+            }
+            function isBech32( string ) {
+                try {
+                    var words = bech32.bech32.decode( string ).words;
+                    return true;
+                } catch( e ) {
+                    return false;
+                }
+            }
+            function isHex( h ) {
+                if ( !h ) return;
+                var length = h.length;
+                if ( length % 2 ) return;
+                try {
+                    var a = BigInt( "0x" + h, "hex" );
+                } catch( e ) {
+                    return;
+                }
+                var unpadded = a.toString( 16 );
+                var padding = [];
+                var i; for ( i=0; i<length; i++ ) padding.push( 0 );
+                padding = padding.join( "" );
+                padding = padding + unpadded.toString();
+                padding = padding.slice( -Math.abs( length ) );
+                return ( padding === h );
+            }
+            function isStringUrl( string ) {
+                if ( string.indexOf( " " ) >= 0 || string.indexOf( "<" ) >= 0 || string.indexOf( ">" ) >= 0 || string.indexOf( "&gt;" ) >= 0 || string.indexOf( "&lt;" ) >= 0 || string.indexOf( "'" ) >= 0 || string.indexOf( '"' ) >= 0 ) {
+                    return;
+                }
+                try {
+                    var arr = string.match( /\S+\.{1}[a-zA-Z0-9\?\=\&\$\+\,\;\@\#\%\-\_]{2,}\/?[a-zA-Z0-9/\\?\=\&\$\+\,\;\@\#\%\-\_\.]*/g );
+                    if ( typeof( arr ) == "object" && arr.length == 1 ) {
+                        return true;
+                    }
+                    return;
+                } catch( e ) {
+                    return;
+                }
+            }
+            function getData( url ) {
+                return new Promise( async function( resolve, reject ) {
+                    function inner_get( url ) {
+                        var xhttp = new XMLHttpRequest();
+                        xhttp.open( "GET", url, true );
+                        xhttp.send();
+                        return xhttp;
+                    }
+                    var data = inner_get( url );
+                    data.onerror = function( e ) {
+                        resolve( "error" );
+                    }
+                    async function isResponseReady() {
+                        return new Promise( function( resolve2, reject ) {
+                            if ( !data.responseText || data.readyState != 4 ) {
+                                setTimeout( async function() {
+                                    var msg = await isResponseReady();
+                                    resolve2( msg );
+                                }, 1 );
+                            } else {
+                                resolve2( data.responseText );
+                            }
+                        });
+                    }
+                    var returnable = await isResponseReady();
+                    resolve( returnable );
+                });
+            }
+            async function loopTilTxIsBroadcast( txid, network ) {
+                var txIsBroadcast = false;
+                async function isDataSetYet( data_i_seek ) {
+                    return new Promise( function( resolve, reject ) {
+                        if ( !data_i_seek ) {
+                            setTimeout( async function() {
+                                console.log( "checking if tx is broadcast..." );
+                                async function txIsBroadcast( txid, network ) {
+                                    var tx = await getData( `https://blockstream.info/${network}api/tx/${txid}` );
+                                    if ( tx == "Transaction not found" ) return;
+                                    return true;
+                                }
+                                txIsBroadcast = await txIsBroadcast( txid, network );
+                                var msg = await isDataSetYet( txIsBroadcast );
+                                resolve( msg );
+                            }, 10000 );
+                        } else {
+                            resolve( data_i_seek );
+                        }
+                    });
+                }
+                async function getTimeoutData() {
+                    var data_i_seek = await isDataSetYet( txIsBroadcast );
+                    return data_i_seek;
+                }
+                var returnable = await getTimeoutData();
+                return returnable;
+            }
+            async function pushBTCpmt( rawtx, network ) {
+                var txid = await postData( `https://mempool.space/${network}api/tx`, rawtx );
+                return txid;
+            }
+            function bytesToHex( bytes ) {
+                return bytes.reduce( ( str, byte ) => str + byte.toString( 16 ).padStart( 2, "0" ), "" );
+            }
+            function pubkeyFromNpub( npub ) {
+                return bytesToHex( bech32.bech32.fromWords( bech32.bech32.decode( npub ).words ) );
+            }
+        </script>
+        <script>
+            var { getSharedSecret, schnorr, utils } = nobleSecp256k1
+            var crypto  = window.crypto 
+            var getRand = size => crypto.getRandomValues(new Uint8Array(size))
+            var sha256  = bitcoinjs.crypto.sha256
+            var keypair = bitcoinjs.ECPair.makeRandom()
+            var privKey = keypair.privateKey.toString( "hex" )
+            var pubKey  = keypair.publicKey.toString( "hex" )
+            pubKey      = pubKey.substring( 2 )
+            console.log( pubKey );
+            function sendWarning( relay, network, txid, revault_tx, pubkey, timelength ) {
+                var socket = new WebSocket( relay );
+                socket.addEventListener('message', async function( message ) {
+                    var [ type, subId, event ] = JSON.parse( message.data );
+                    var { kind, content } = event || {}
+                    if (!event) return
+                    if (kind === 4) {
+                        console.log( "pubkey:", event.pubkey );
+                        if ( event.pubkey == pubkey ) sessionStorage[ "do_not_send" ] = true;
+                        content = decrypt(privKey, event.pubkey, content)
+                    }
+                    if ( event !== true ) console.log('content:', content)
+                });
+
+                socket.addEventListener('open', async function( e ) {
+                    console.log( "connected to " + relay )
+                    var subId   = bitcoinjs.ECPair.makeRandom().privateKey.toString( "hex" )
+                    var filter  = { "#p": [ pubKey ] }
+
+                    var subscription = [ "REQ", subId, filter ]
+                    console.log('Subscription:', subscription)
+
+                    socket.send(JSON.stringify( subscription ));
+                    var message   = `Possible theft in action! This tx was broadcast: https://mempool.space/${network}tx/${txid} -- if you do not reply to us in ${timelength} we will broadcast this revault tx: 
+                    ${revault_tx}`;
+                    var encrypted = encrypt( privKey, pubkey, message );
+                    var event = {
+                        "content"    : encrypted,
+                        "created_at" : Math.floor( Date.now() / 1000 ),
+                        "kind"       : 4,
+                        "tags"       : [ [ 'p', pubkey ] ],
+                        "pubkey"     : pubKey,
+                    }
+                    var signedEvent = await getSignedEvent(event, privKey);
+                    console.log( "signed event:", signedEvent )
+                    socket.send(JSON.stringify([ "EVENT", signedEvent ]));
+                });
+            }
+
+            async function getSignedEvent(event, privateKey) {
+                var eventData = JSON.stringify([
+                    0,                    // Reserved for future use
+                    event['pubkey'],        // The sender's public key
+                    event['created_at'],    // Unix timestamp
+                    event['kind'],        // Message “kind” or type
+                    event['tags'],        // Tags identify replies/recipients
+                    event['content']        // Your note contents
+                ])
+                event.id  = sha256( eventData ).toString( 'hex' )
+                event.sig = await schnorr.sign( event.id, privateKey ) 
+                return event
+            }
+            function hexToBytes( hex ) {
+                return Uint8Array.from( hex.match( /.{1,2}/g ).map( ( byte ) => parseInt( byte, 16 ) ) );
+            }
+
+            function bytesToHex( bytes ) {
+                return bytes.reduce( ( str, byte ) => str + byte.toString( 16 ).padStart( 2, '0' ), '' );
+            }
+            function base64ToHex( str ) {
+                var raw = atob( str );
+                var result = '';
+                var i; for ( i=0; i<raw.length; i++ ) {
+                    var hex = raw.charCodeAt( i ).toString( 16 );
+                    result += ( hex.length === 2 ? hex : '0' + hex );
+                }
+                return result;
+            }
+            function encrypt( privkey, pubkey, text ) {
+                var key = nobleSecp256k1.getSharedSecret( privkey, '02' + pubkey, true ).substring( 2 );
+                var iv = window.crypto.getRandomValues(new Uint8Array(16));
+                var cipher = browserifyCipher.createCipheriv( 'aes-256-cbc', hexToBytes( key ), iv );
+                var encryptedMessage = cipher.update(text,"utf8","base64");
+                emsg = encryptedMessage + cipher.final( "base64" );
+                var uint8View = new Uint8Array( iv.buffer );
+                var decoder = new TextDecoder();
+                return emsg + "?iv=" + btoa( String.fromCharCode.apply( null, uint8View ) );
+            }
+            function decrypt( privkey, pubkey, ciphertext ) {
+                var [ emsg, iv ] = ciphertext.split( "?iv=" );
+                var key = nobleSecp256k1.getSharedSecret( privkey, '02' + pubkey, true ).substring( 2 );
+                var decipher = browserifyCipher.createDecipheriv(
+                    'aes-256-cbc',
+                    hexToBytes( key ),
+                    hexToBytes( base64ToHex( iv ) )
+                );
+                var decryptedMessage = decipher.update( emsg, "base64" );
+                dmsg = decryptedMessage + decipher.final( "utf8" );
+                return dmsg;
+            }
+        </script>
+    </body>
+</html>
