@@ -57,8 +57,8 @@
       var url_keys = url_params.keys();
       var $_GET = {}
       for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
-      var mempoolNetwork = ""; //mainnet: "" testnet: "testnet/" signet: "signet/"
-      var addyprefix = "bc"; //mainnet: "bc" testnet: "tb" signet: "tb"
+      var mempoolNetwork = "testnet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
+      var addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
       if ( $_GET[ "network" ] == "mainnet" ) {
         mempoolNetwork = "";
         addyprefix = "bc";
