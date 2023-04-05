@@ -57,8 +57,152 @@
       var url_keys = url_params.keys();
       var $_GET = {}
       for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
+      var mempoolNetwork = "mainnet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
+      var addyprefix = "bc"; //mainnet: "bc" testnet: "tb" signet: "tb"
     </script>
     <script>
+      async function pushBTCpmt( rawtx, network ) {
+        var txid = await postData( `https://mempool.space/${network}api/tx`, rawtx );
+        return txid;
+      }
+      async function postData( url, json, content_type = "", apikey = "" ) {
+        var rtext = "";
+        function inner_post( url, json, content_type = "", apikey = "" ) {
+          var xhttp = new XMLHttpRequest();
+          xhttp.open( "POST", url, true );
+          if ( content_type ) {
+            xhttp.setRequestHeader( `Content-Type`, content_type );
+          }
+          if ( apikey ) {
+            xhttp.setRequestHeader( `X-Api-Key`, apikey );
+          }
+          xhttp.send( json );
+          return xhttp;
+        }
+        var data = inner_post( url, json, content_type, apikey );
+        data.onerror = function( e ) {
+          rtext = "error";
+        }
+        async function isResponseReady() {
+          return new Promise( function( resolve, reject ) {
+            if ( rtext == "error" ) {
+              resolve( rtext );
+            }
+            if ( !data.responseText || data.readyState != 4 ) {
+              setTimeout( async function() {
+                var msg = await isResponseReady();
+                resolve( msg );
+              }, 50 );
+            } else {
+              resolve( data.responseText );
+            }
+          });
+        }
+        var returnable = await isResponseReady();
+        return returnable;
+      }
+      function getData( url ) {
+        return new Promise( async function( resolve, reject ) {
+          function inner_get( url ) {
+            var xhttp = new XMLHttpRequest();
+            xhttp.open( "GET", url, true );
+            xhttp.send();
+            return xhttp;
+          }
+          var data = inner_get( url );
+          data.onerror = function( e ) {
+            resolve( "error" );
+          }
+          async function isResponseReady() {
+            return new Promise( function( resolve2, reject ) {
+              if ( !data.responseText || data.readyState != 4 ) {
+                setTimeout( async function() {
+                  var msg = await isResponseReady();
+                  resolve2( msg );
+                }, 1 );
+              } else {
+                resolve2( data.responseText );
+              }
+            });
+          }
+          var returnable = await isResponseReady();
+          resolve( returnable );
+        });
+      }
+      function waitSomeSeconds( num ) {
+        var num = num.toString() + "000";
+        num = Number( num );
+        return new Promise( function( resolve, reject ) {
+          setTimeout( function() { resolve( "" ); }, num );
+        });
+      }
+      async function loopTilAddressReceivesMoney(address, includeMempool) {
+        let itReceivedMoney = false;
+
+        async function isDataSetYet(data_i_seek) {
+          return new Promise(function (resolve, reject) {
+            if (!data_i_seek) {
+              setTimeout(async function () {
+                console.log("waiting for address to receive money...");
+                try {
+                  itReceivedMoney = await addressOnceHadMoney(address, includeMempool);
+                }catch(e){ }
+                let msg = await isDataSetYet(itReceivedMoney);
+                resolve(msg);
+              }, 2000);
+            } else {
+              resolve(data_i_seek);
+            }
+          });
+        }
+
+        async function getTimeoutData() {
+          let data_i_seek = await isDataSetYet(itReceivedMoney);
+          return data_i_seek;
+        }
+
+        let returnable = await getTimeoutData();
+        return returnable;
+      }
+
+      async function addressReceivedMoneyInThisTx(address) {
+        let txid;
+        let vout;
+        let amt;
+        let nonjson = await getData("https://mempool.space/" + mempoolNetwork + "api/address/" + address + "/txs");
+        let json = JSON.parse(nonjson);
+        json.forEach(function (tx) {
+          tx["vout"].forEach(function (output, index) {
+            if (output["scriptpubkey_address"] == address) {
+              txid = tx["txid"];
+              vout = index;
+              amt = output["value"];
+            }
+          });
+        });
+        return [txid, vout, amt];
+      }
+
+      function isValidJson( content ) {
+        if ( !content ) return;
+        try {  
+          var json = JSON.parse( content );
+        } catch ( e ) {
+          return;
+        }
+        return true;
+      }
+
+      async function addressOnceHadMoney(address, includeMempool) {
+        let url = "https://mempool.space/" + mempoolNetwork + "api/address/" + address;
+        let nonjson = await getData(url);
+        if (!isValidJson(nonjson)) return false;
+        let json = JSON.parse(nonjson);
+        if (json["chain_stats"]["tx_count"] > 0 || (includeMempool && json["mempool_stats"]["tx_count"] > 0)) {
+          return true;
+        }
+        return false;
+      }
       function hexToBytes(hex) {
         return Uint8Array.from(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
       }
@@ -134,6 +278,54 @@
         };
         html2pdf().set( opt ).from( html ).save();
       }
+      function getBlockheight( network ) {
+        return new Promise( function( resolve, reject ) {
+          var xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+            if ( this.readyState == 4 && ( this.status > 199 && this.status < 300 ) ) {
+              var blockheight = Number( xhttp.responseText );
+              resolve( blockheight );
+            }
+          };
+          xhttp.open( "GET", `https://mempool.space/${network}api/blocks/tip/height`, true );
+          xhttp.send();
+        });
+      }
+      async function howManyConfs( txid, network ) {
+        var blockheight = await getBlockheight( network );
+        return new Promise( function( resolve, reject ) {
+          var xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+            if ( this.readyState == 4 && ( this.status > 199 && this.status < 300 ) ) {
+              var json = JSON.parse( xhttp.responseText );
+              if ( json[ "status" ][ "confirmed" ] ) {
+                resolve( ( Number( blockheight ) - Number( json[ "status" ][ "block_height" ] ) ) + 1 );
+              } else {
+                resolve( "0".toString() );
+              }
+            } else {
+              if ( this.status > 399 ) {
+                resolve( "ejected from mempool" );
+              }
+            }
+          };
+          xhttp.open( "GET", `https://mempool.space/${network}api/tx/` + txid, true );
+          xhttp.send();
+        });
+      }
+      async function waitForConfs( txid, blocks_to_wait, network ) {
+        var numOfConfs = await howManyConfs( txid, network );
+        return new Promise( function( resolve, reject ) {
+          if ( numOfConfs < blocks_to_wait ) {
+            setTimeout( async function() {
+              var msg = await waitForConfs( txid, blocks_to_wait, network );
+              resolve( msg );
+            }, 5000 );
+          } else {
+            resolve( true );
+          }
+        });
+      }
     </script>
   </head>
   <body>
@@ -188,7 +380,8 @@
               options += `<option data-index="${index}" selected="selected">Deposit ${index + 1}: ${amt.toLocaleString()} sats</option>`;
             }
           });
-          return `
+          if ( !balance ) vaultStatus = "Empty&nbsp;😢";
+          var html = `
             <div style="${wallet.display}">
               <h1>Your vault</h1>
               <div style="display: flex; justify-content: space-between;">
@@ -197,20 +390,26 @@
                   <div>Balance: ${balance.toLocaleString()} sats</div>
                 </div>
                 <div style="display: flex; justify-content: center; align-items: center;">
-                  <button onclick="init();">+&nbsp;Deposit</button>
+                  <button onclick="deposit();">+&nbsp;Deposit</button>
                 </div>
               </div>
-              <div>
-                <!-- <p style="word-wrap: break-word;">Utxo: babababababababababababababababababababababababababababababababa:0</p> -->
-                <p>Select a coin from your vault to manage it</p>
-                <select onchange='wallet.setState( () => wallet.displayedCoin = Number( this[ this.selectedIndex ].getAttribute( "data-index" ) ) );'>
-                  ${options}
-                </select>
-              </div>
-              <br>
-              <div style="display: flex; flex-wrap: wrap;"><button class="main_btn spend">Withdraw deposit ${wallet.displayedCoin + 1}</button> <button class="main_btn watchtower">Interactive watchtower</button> <button class="main_btn theft">Simulate a theft attempt</button> <button class="main_btn export_spending_keys">Export deposit ${wallet.displayedCoin + 1}'s spending keys</button> <button class="main_btn export_covenant_keys">Export deposit ${wallet.displayedCoin + 1}'s covenant keys</button></div>
-            </div>
           `;
+          if ( balance ) {
+            html += `
+                <div>
+                  <p>Select a coin from your vault to manage it</p>
+                  <select onchange='wallet.setState( () => wallet.displayedCoin = Number( this[ this.selectedIndex ].getAttribute( "data-index" ) ) );'>
+                    ${options}
+                  </select>
+                </div>
+                <br>
+                <div style="display: flex; flex-wrap: wrap;"><button class="main_btn spend">Withdraw deposit ${wallet.displayedCoin + 1}</button> <button class="main_btn watchtower">Interactive watchtower</button> <button class="main_btn theft">Simulate a theft attempt</button> <button class="main_btn export_spending_keys">Export deposit ${wallet.displayedCoin + 1}'s spending keys</button> <button class="main_btn export_covenant_keys">Export deposit ${wallet.displayedCoin + 1}'s covenant keys</button></div>
+            `;
+          }
+          html += `
+              </div>
+          `;
+          return html;
         },
         watchtower: false,
         displayedCoin: 0,
@@ -222,6 +421,7 @@
         },
         render: () => {
           $( ".wallet" ).innerHTML = wallet.html();
+          if ( !$( ".spend" ) ) return;
           $( ".spend" ).onclick = async function() {
             destino_address = prompt( "Enter a bitcoin address" );
             if ( !destino_address ) return;
@@ -257,10 +457,18 @@
             var KeyPair = cryptoUtils.KeyPair;
             var cpfp_seckey = new KeyPair( cpfp_privkey );
             var cpfp_pubkey = cpfp_seckey.pub.rawX;
-            var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, 'bcrt' );
-            var cpfp_txid = prompt( `To get the clock ticking, this app must broadcast a transaction that moves your funds from the vault to a timelocked bitcoin address. That transaction will cost transaction fees which cannot be taken from the value in your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then enter the txid of that transaction.` );
-            var cpfp_vout = prompt( `Enter the vout` );
-            cpfp_vout = Number( cpfp_vout );
+            var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, addyprefix );
+            alert( `To get the clock ticking, this app must broadcast a transaction that moves your funds from the vault to a timelocked bitcoin address. That transaction will cost transaction fees which cannot be taken from the value in your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then click ok.` );
+            // var cpfp_txid = prompt( `To get the clock ticking, this app must broadcast a transaction that moves your funds from the vault to a timelocked bitcoin address. That transaction will cost transaction fees which cannot be taken from the value in your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then enter the txid of that transaction.` );
+            // var cpfp_vout = prompt( `Enter the vout` );
+            // cpfp_vout = Number( cpfp_vout );
+            await loopTilAddressReceivesMoney(cpfp_address, true);
+            await waitSomeSeconds(2);
+            var txinfo = await addressReceivedMoneyInThisTx(cpfp_address);
+            var cpfp_txid = txinfo[0];
+            var cpfp_vout = txinfo[1];
+            var cpfp_amt = txinfo[2];
+            console.log("yay! txid:", cpfp_txid, "vout:", cpfp_vout, "amount:", cpfp_amt);
             var unvaulttx = {
                 version: 2,
                 input: [{
@@ -272,7 +480,8 @@
                 },{
                   txid: cpfp_txid,
                   vout: cpfp_vout,
-                  prevout: {value: amount_to_ask_for, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                  // prevout: {value: amount_to_ask_for, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                  prevout: {value: cpfp_amt, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
                   sequence: 2,
                   witness: []
                 }],
@@ -290,9 +499,16 @@
             unvaulttx.input[ 1 ].witness = [ sig2 ];
             var rawtx = tapscript.Tx.encode( unvaulttx );
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
-            alert( `Broadcast this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
-            alert( `Click OK when this transaction: ${to_midstate_txid} has 2 confirmations` );
-            alert( `Now broadcast this transaction to fully unvault your money: ${rawtx}` );
+            await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
+            // alert( `Broadcast this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
+            alert( `This app just broadcasted this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
+            alert( `Your browser will now wait for this transaction: https:/mempool.space/${mempoolNetwork}tx/${to_midstate_txid} to receive 2 confirmations. You can safely close this popup and wait or you can keep it open and click ok when you see the 2 confirmations are over. The app cannot close this popup for you.` );
+            await waitForConfs( to_midstate_txid, 2, mempoolNetwork );
+            // alert( `Click OK when this transaction: ${to_midstate_txid} has 2 confirmations` );
+            await waitSomeSeconds( 2 );
+            await pushBTCpmt( rawtx, mempoolNetwork );
+            // alert( `Now broadcast this transaction to fully unvault your money: ${rawtx}` );
+            alert( `This app just broadcasted this transaction to fully unvault your money: ${rawtx}` );
             vault.setState( () => {vault.desired_state.splice( wallet.displayedCoin, 1 );vault.current_state.splice( wallet.displayedCoin, 1 );vault.spendingKeys.splice( wallet.displayedCoin, 1 );vault.covenantKeys.splice( wallet.displayedCoin, 1 );} );
             wallet.setState( () => wallet.displayedCoin = 0 );
           }
@@ -300,9 +516,13 @@
             alert( `Click ok after you paste the following json object into a third party watchtower service (such as Watchdog, which you can find here: ${"https://supertestnet.github.io/hoard/watchdog.html"}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ 0 ] )}`)
           }
           $( ".theft" ).onclick = async function() {
-            alert( `Broadcast this tx to simulate a theft, then click ok: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
+            await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
+            // alert( `Broadcast this tx to simulate a theft, then click ok: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
+            alert( `This app ust broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]} -- click ok to proceed with the next step` );
             vault.setState( () => vault.current_state[ wallet.displayedCoin ] = vault.current_state[ wallet.displayedCoin ] + 1 );
-            alert( `Oh no! Someone other than you started the unvaulting procedure so they probably have one of your private keys! Broadcast this transaction to revault your money, then click ok: ${vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ]}` );
+            await pushBTCpmt( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ], mempoolNetwork );
+            // alert( `Oh no! Someone other than you started the unvaulting procedure so they probably have one of your private keys! Broadcast this transaction to revault your money, then click ok: ${vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ]}` );
+            alert( `Oh no! Someone other than you started the unvaulting procedure so they probably have one of your private keys! Luckily, this app just broadcasted this transaction and revaulted your money: ${vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ]} -- now you just need to pay to bump the fees on this revaulting transaction. Instructions will follow in the next popup.` );
             var revault_txid = getTxidFromRawTx( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ] );
             var size_of_parent_and_child = ( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ].length / 2 ) + 300;
             var desired_fee_rate = 3;
@@ -312,11 +532,19 @@
             var KeyPair = cryptoUtils.KeyPair;
             var cpfp_seckey = new KeyPair( cpfp_privkey );
             var cpfp_pubkey = cpfp_seckey.pub.rawX;
-            var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, 'bcrt' );
-            var cpfp_txid = prompt( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then enter the txid of that transaction.` );
-            var cpfp_vout = prompt( `Enter the vout` );
-            cpfp_vout = Number( cpfp_vout );
-            var cpfp_destino_address = prompt( `Also, the act of bumping your fee will create a tiny bitcoin utxo of 546 sats. Please enter a bitcoin address from a wallet where you'd like this tiny utxo to end up. (Do NOT use your vault address, use a hot wallet.)` );
+            var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, addyprefix );
+            alert( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then click ok.` );
+            await loopTilAddressReceivesMoney(cpfp_address, true);
+            await waitSomeSeconds(2);
+            var txinfo = await addressReceivedMoneyInThisTx(cpfp_address);
+            var cpfp_txid = txinfo[0];
+            var cpfp_vout = txinfo[1];
+            var cpfp_amt = txinfo[2];
+            console.log("yay! txid:", cpfp_txid, "vout:", cpfp_vout, "amount:", cpfp_amt);
+            // var cpfp_txid = prompt( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then enter the txid of that transaction.` );
+            // var cpfp_vout = prompt( `Enter the vout` );
+            // cpfp_vout = Number( cpfp_vout );
+            var cpfp_destino_address = prompt( `Also, the act of bumping your fee will create a tiny bitcoin utxo of 546 sats. Please enter a bitcoin address from a wallet where you'd like this tiny utxo to end up. (Do NOT put it in the vault, the vault can only be used for large amounts of money.)` );
             var cpfp_destino = bytesToHex( tapscript.Address[ tapscript.Address.getType( cpfp_destino_address )[ 0 ].toUpperCase() ].decode( cpfp_destino_address ) );
             var prefix = "";
             if ( tapscript.Address.getType( cpfp_destino_address )[ 0 ].toUpperCase() == "P2TR" ) prefix = "5120";
@@ -331,7 +559,8 @@
                 },{
                   txid: cpfp_txid,
                   vout: cpfp_vout,
-                  prevout: {value: amount_to_ask_for, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                  // prevout: {value: amount_to_ask_for, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                  prevout: {value: cpfp_amt, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
                   witness: []
                 }],
                 output: [{
@@ -346,7 +575,9 @@
             cpfp_tx.input[ 0 ].witness = [ sig1 ];
             cpfp_tx.input[ 1 ].witness = [ sig2 ];
             var rawtx = tapscript.Tx.encode( cpfp_tx );
-            alert( `Broadcast this transaction to bump the fee to put your money back in your vault: ${rawtx}` );
+            await pushBTCpmt( rawtx, mempoolNetwork );
+            // alert( `Broadcast this transaction to bump the fee to put your money back in your vault: ${rawtx}` );
+            alert( `This app just broadcasted this transaction to bump the fee to put your money back in your vault: ${rawtx} -- it is safe to click ok` );
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
             alert( `Rest easy! 😌 Your money is in a different vault now and you alone can move it` );
           }
@@ -493,7 +724,7 @@
           pubkey2,
           'OP_CHECKSIG'
         ];
-        var vaultAddress = tapscript.Tree.encodeAddress( pubkey1, 'bcrt' );
+        var vaultAddress = tapscript.Tree.encodeAddress( pubkey1, addyprefix );
         if ( !revault_txid ) console.log( "vault address:", vaultAddress );
         var div = document.createElement( "div" );
         div.append( createQR( vaultAddress ) );
@@ -501,22 +732,29 @@
         //create the midstate address
         var leaf = await tapscript.Tree.getLeaf( tapscript.Script.encode( script ) );
         var [tapkey2] = await tapscript.Tweak.getPubkey( pubkey1, [leaf] );
-        var midstate = tapscript.Tree.encodeAddress( tapkey2, 'bcrt' );
+        var midstate = tapscript.Tree.encodeAddress( tapkey2, addyprefix );
         decodedMidstate = tapscript.Tree.decodeAddress( midstate ).hex;
 
         if ( revault_txid ) {
           var txid = revault_txid;
           var vout = 0;
         } else {
-          var txid = prompt( "Enter the txid" );
-          var vout = prompt( "Enter the vout" );
-          vout = Number( vout );
-          var amt = prompt( "Enter the amount" );
-          amt = Number( amt );
+          await loopTilAddressReceivesMoney(vaultAddress, true);
+          await waitSomeSeconds(2);
+          var txinfo = await addressReceivedMoneyInThisTx(vaultAddress);
+          var txid = txinfo[0];
+          var vout = txinfo[1];
+          var amt = txinfo[2];
+          console.log("yay! txid:", txid, "vout:", vout, "amount:", amt);
+          // var txid = prompt( "Enter the txid" );
+          // var vout = prompt( "Enter the vout" );
+          // vout = Number( vout );
+          // var amt = prompt( "Enter the amount" );
+          // amt = Number( amt );
+          // if ( !txid ) return;
+          // if ( !vout && vout !== 0 ) return;
+          // if ( !amt ) return;
           vault.reused_pubkey = bytesToHex( pubkey1 );
-          if ( !txid ) return;
-          if ( !vout && vout !== 0 ) return;
-          if ( !amt ) return;
         }
         //create and sign a tx1 that sends the money to the midstate
 
@@ -583,7 +821,7 @@
         object[ "amt" ] = amt;
         return object;
       }
-      async function init() {
+      async function deposit() {
         $( '.home' ).style.display = "block";
         wallet.setState( () => wallet.display = "display: none;" );
         var object = await getContract();
@@ -605,7 +843,8 @@
         alert( `Success, your money is in the vault` );
       }
       if ( !localStorage[ "vault" ] ) {
-        init();
+        $( '.home' ).style.display = "none";
+        wallet.setState( () => wallet.display = "display: block;" );
       } else {
         var vault2 = JSON.parse( localStorage[ "vault" ] );
         vault.vaultAddress = vault2.vaultAddress;
