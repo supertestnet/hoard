@@ -533,12 +533,13 @@
             wallet.setState( () => wallet.displayedCoin = 0 );
           }
           $( ".watchtower" ).onclick = () => {
-            alert( `Click ok after you paste the following json object into a third party watchtower service (such as Watchdog, which you can find here: ${"https://supertestnet.github.io/hoard/watchdog.html"}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ 0 ] )}`)
+            alert( `Click ok after you paste the following json object into a third party watchtower service (such as Watchdog, which you can find here: ${"https://supertestnet.github.io/hoard/watchdog.html"}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ] )}`);
+            alert( `Now simulate a theft but do not click ok on the first popup, otherwise *you* will broadcast your revault transaction instead of letting the watchtower do it. Instead, after you click the button to simulate a theft and see the first popup, go check your nostr dms. You should see a message from your watchtower notifying you that they saw your coins move and asking you to confirm it was you. If it was you, write them back; otherwise, they will broadcast your revault tx after a delay. Check your watchtower's website for more details.` );
           }
           $( ".theft" ).onclick = async function() {
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
             // alert( `Broadcast this tx to simulate a theft, then click ok: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
-            alert( `This app ust broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]} -- click ok to proceed with the next step` );
+            alert( `This app just broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]} -- click ok to proceed with the next step` );
             vault.setState( () => vault.current_state[ wallet.displayedCoin ] = vault.current_state[ wallet.displayedCoin ] + 1 );
             await pushBTCpmt( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ], mempoolNetwork );
             // alert( `Oh no! Someone other than you started the unvaulting procedure so they probably have one of your private keys! Broadcast this transaction to revault your money, then click ok: ${vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ]}` );
