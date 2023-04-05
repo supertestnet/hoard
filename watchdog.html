@@ -49,7 +49,7 @@
         </script>
     </head>
     <body>
-        <h1>Welcome to Guard Dog</h1>
+        <h1>Welcome to Watchdog</h1>
         <h3>The world's best watchtower service for bitcoin vaults</h3>
         <p>Please enter a "covenant keys" json exported from your vault</p>
         <textarea rows="10"></textarea>
@@ -110,7 +110,7 @@
                 if ( network == "mainnet/" ) network = "";
                 var display_timelength = $('input[name="timelength"]:checked').id.replace( "_", " " );
                 alert( `Success! Once you click ok, this app will watch out for someone trying to unvault your money. If it sees that happening, it will notify you via nostr to ensure it’s you. If it’s not you (or you don’t respond), it will broadcast your revault transaction.` );
-                // await loopTilTxIsBroadcast( json[ "to_midstate_txid" ], network );
+                await loopTilTxIsBroadcast( json[ "to_midstate_txid" ], network );
                 sendWarning( relay, network, json[ "to_midstate_txid" ], json.revault, pubkey, display_timelength );
                 if ( display_timelength == "1 minute" ) real_timelength = 60;
                 if ( display_timelength == "1 hour" ) real_timelength = 60 * 60;
