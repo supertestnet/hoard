@@ -89,7 +89,7 @@ Since I view presigned transactions as equivalent to the private keys of covenan
 - [x] Add a balance display
 - [x] Add a deposit button
 - [x] When a utxo is spent, remove it from the vault's key/value store
-- [ ] Add a watchtower
+- [x] Add a watchtower
 - [ ] Make the timelock configurable
 - [ ] Make the number of revaults configurable
 - [ ] Allow partial withdrawals (by sending the remainder to a new vault)
