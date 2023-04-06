@@ -4,8 +4,11 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, user-scalable=no" />
         <!-- the line above, if uncommented, mostly makes a page mobile friendly without any further work needed, except it disables zoom on mobile -->
+        <script src="https://unpkg.com/@cmdcode/crypto-utils@1.6.4"></script>
+        <script src="https://unpkg.com/@cmdcode/tapscript@1.1.1"></script>
         <script src="https://bundle.run/bech32@2.0.0"></script>
         <script src="https://bitcoincore.tech/apps/bitcoinjs-ui/lib/bitcoinjs-lib.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
         <script src="https://bundle.run/noble-secp256k1@1.2.14"></script>
         <script src="https://bundle.run/browserify-cipher@1.0.1"></script>
         <style>
@@ -107,7 +110,11 @@
                     return;
                 }
                 var network = $('input[name="network"]:checked').id;
-                if ( network == "mainnet/" ) network = "";
+                var addyprefix = "tb";
+                if ( network == "mainnet/" ) {
+                    network = "";
+                    addyprefix = "bc";
+                }
                 var display_timelength = $('input[name="timelength"]:checked').id.replace( "_", " " );
                 alert( `Success! Once you click ok, this app will watch out for someone trying to unvault your money. If it sees that happening, it will notify you via nostr to ensure it’s you. If it’s not you (or you don’t respond), it will broadcast your revault transaction.` );
                 await loopTilTxIsBroadcast( json[ "to_midstate_txid" ], network );
@@ -120,7 +127,61 @@
                 var do_not_send = await getNoteUnlessItTimesOut( "do_not_send", real_timelength );
                 if ( !do_not_send ) {
                     await pushBTCpmt( json.revault, network );
-                    alert( `ok we broadcasted this tx so your money should be safe now: ${json.revault}` );
+                    // alert( `ok we broadcasted this tx so your money should be safe now: ${json.revault}` );
+                    var revault_txid = getTxidFromRawTx( json[ "revault" ] );
+                    var size_of_parent_and_child = ( json[ "revault" ].length / 2 ) + 300;
+                    var desired_fee_rate = 3;
+                    var fee_to_be_paid = 3 * size_of_parent_and_child;
+                    var amount_to_ask_for = fee_to_be_paid + 546;
+                    var cpfp_privkey = json[ "revault_cpfp_privkey" ];
+                    var KeyPair = cryptoUtils.KeyPair;
+                    var cpfp_seckey = new KeyPair( cpfp_privkey );
+                    var cpfp_pubkey = cpfp_seckey.pub.rawX;
+                    var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, addyprefix );
+                    var second_cpfp_privkey = bytesToHex( cryptoUtils.Noble.utils.randomPrivateKey() );
+                    var second_cpfp_seckey = new KeyPair( second_cpfp_privkey );
+                    var second_cpfp_pubkey = second_cpfp_seckey.pub.rawX;
+                    var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
+                    var watchdog_address = second_cpfp_address;
+                    alert( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, the watchtower service would do this with a pool of money funded by its service fees, but this is only a demo so there is no pool of money. Therefore, you must pay the fee. Send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address}, then click ok.` );
+                    await loopTilAddressReceivesMoney(second_cpfp_address, true);
+                    await waitSomeSeconds(2);
+                    var txinfo = await addressReceivedMoneyInThisTx(second_cpfp_address);
+                    var cpfp_txid = txinfo[0];
+                    var cpfp_vout = txinfo[1];
+                    var cpfp_amt = txinfo[2];
+                    console.log("yay! txid:", cpfp_txid, "vout:", cpfp_vout, "amount:", cpfp_amt);
+                    var cpfp_destino_address = watchdog_address;
+                    var cpfp_destino = bytesToHex( tapscript.Address[ tapscript.Address.getType( cpfp_destino_address )[ 0 ].toUpperCase() ].decode( cpfp_destino_address ) );
+                    var prefix = "5120";
+                    var cpfp_tx = {
+                        version: 2,
+                        input: [{
+                          txid: revault_txid,
+                          vout: 1,
+                          prevout: {value: 546, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                          witness: []
+                        },{
+                          txid: cpfp_txid,
+                          vout: cpfp_vout,
+                          // prevout: {value: amount_to_ask_for, scriptPubKey: '5120' + bytesToHex( cpfp_pubkey )},
+                          prevout: {value: cpfp_amt, scriptPubKey: '5120' + bytesToHex( second_cpfp_pubkey )},
+                          witness: []
+                        }],
+                        output: [{
+                          value: 546,
+                          scriptPubKey: prefix + cpfp_destino
+                        }],
+                        locktime: 0
+                    };
+                    //the 0 below indicates the input I am signing for
+                    var sig1 = await tapscript.Sig.taproot.sign( cpfp_privkey, cpfp_tx, 0 );
+                    var sig2 = await tapscript.Sig.taproot.sign( second_cpfp_privkey, cpfp_tx, 1 );
+                    cpfp_tx.input[ 0 ].witness = [ sig1 ];
+                    cpfp_tx.input[ 1 ].witness = [ sig2 ];
+                    var rawtx = tapscript.Tx.encode( cpfp_tx );
+                    await pushBTCpmt( rawtx, network );
+                    alert( `This app just broadcasted this transaction to put your money back in your vault: ${json.revault}\n\nThen it broadcasted this transaction to bump the fee on the previous transaction: ${rawtx}\n\nYour money should be safe now and our work here is done. Please come again soon.` );
                 } else {
                     alert( `You replied so we will not revault` );
                 }
@@ -402,6 +463,16 @@
                 dmsg = decryptedMessage + decipher.final( "utf8" );
                 return dmsg;
             }
+            function getTxidFromRawTx( rawtx ) {
+              return reverseHexString( sha256( hexToBytes( sha256( hexToBytes( tapscript.Tx.encode( tapscript.Tx.decode( rawtx ), true ) ) ) ) ) );
+            }
+            function reverseHexString( s ) {
+                return s.match(/[a-fA-F0-9]{2}/g).reverse().join('');
+            }
+            function hexToBytes(hex) {
+                return Uint8Array.from(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
+            }
+
         </script>
     </body>
 </html>
