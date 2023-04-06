@@ -50,6 +50,46 @@
             var $_GET = {}
             for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
         </script>
+        <style>
+            .black-bg {
+                display: none;
+                width: 100%;
+                position: fixed;
+                top: 0;
+                left: 0;
+                background-color: black;
+                opacity: .5;
+                width: 100vw;
+                height: 100vh
+            }
+            .modal {
+                display: none;
+                position: fixed;
+                box-sizing: border-box;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%,-50%);
+                width: 100%;
+                max-width: 560px;
+                background-color: white;
+                border-radius: 10px;
+                padding: 20px;
+                color: black;
+                text-align: center
+            }
+        </style>
+        <script>
+            function modalVanish() {
+                $( ".black-bg" ).style.display = "none";
+                $( ".modal" ).style.display = "none";
+            }
+            function showModal( content ) {
+                $( ".modal" ).innerHTML = `<div style="position: absolute;right: 1rem;top: 0.5rem;font-size: 2rem; cursor: pointer;" onclick="modalVanish()">×</div>`;
+                $( ".modal" ).innerHTML += content;
+                $( ".black-bg" ).style.display = "block";
+                $( ".modal" ).style.display = "block";
+            }
+        </script>
     </head>
     <body>
         <h1>Welcome to Watchdog</h1>
@@ -116,9 +156,12 @@
                     addyprefix = "bc";
                 }
                 var display_timelength = $('input[name="timelength"]:checked').id.replace( "_", " " );
-                alert( `Success! Once you click ok, this app will watch out for someone trying to unvault your money. If it sees that happening, it will notify you via nostr to ensure it’s you. If it’s not you (or you don’t respond), it will broadcast your revault transaction.` );
-                console.log( "looping")
+                var modal_content = `<p>Success! This app is now watching for someone trying to unvault your money. If it sees that happening, it will notify you via nostr to ensure it’s you. If it’s not you (or you don’t respond), it will broadcast your revault transaction. Feel free to X out of this popup if you want.</p>`;
+                showModal( modal_content );
+                console.log( "looping" );
                 await loopTilTxIsBroadcast( json[ "to_midstate_txid" ], network );
+                var modal_content = `<p>Well, well, well! We detected that someone is trying to spend your money. This app is now reaching out to your nostr pubkey to make sure it was you. If you don't reply within ${display_timelength}, this app will broadcast your revaulting transaction to save you from potential theft.</p>`;
+                showModal( modal_content );
                 sendWarning( relay, network, json[ "to_midstate_txid" ], json.revault, pubkey, display_timelength );
                 if ( display_timelength == "1 minute" ) real_timelength = 60;
                 if ( display_timelength == "1 hour" ) real_timelength = 60 * 60;
@@ -144,7 +187,8 @@
                     var second_cpfp_pubkey = second_cpfp_seckey.pub.rawX;
                     var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
                     var watchdog_address = second_cpfp_address;
-                    alert( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, the watchtower service would do this with a pool of money funded by its service fees, but this is only a demo so there is no pool of money. Therefore, you must pay the fee. Send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address}, then click ok.` );
+                    var modal_content = `<p>This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, the watchtower service would do this with a pool of money funded by its service fees, but this is only a demo so there is no pool of money. Therefore, you must pay the fee. Send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address}, then you can X out of this popup.</p>`;
+                    showModal( modal_content );
                     await loopTilAddressReceivesMoney(second_cpfp_address, network, true);
                     await waitSomeSeconds(2);
                     var txinfo = await addressReceivedMoneyInThisTx(second_cpfp_address, network);
@@ -182,9 +226,11 @@
                     cpfp_tx.input[ 1 ].witness = [ sig2 ];
                     var rawtx = tapscript.Tx.encode( cpfp_tx );
                     await pushBTCpmt( rawtx, network );
-                    alert( `This app just broadcasted this transaction to put your money back in your vault: ${json.revault}\n\nThen it broadcasted this transaction to bump the fee on the previous transaction: ${rawtx}\n\nYour money should be safe now and our work here is done. Please come again soon.` );
+                    var modal_content = `<p>This app just broadcasted this transaction to put your money back in your vault: ${json.revault}</p><p>Then it broadcasted this transaction to bump the fee on the previous transaction: ${rawtx}</p><p>Your money should be safe now and our work here is done. Please come again soon.</p>`;
+                    showModal( modal_content );
                 } else {
-                    alert( `You replied so we will not revault` );
+                    var modal_content = `<p>You replied so we will not revault. Our work here is done. Please come again soon.</p>`;
+                    showModal( modal_content );
                 }
             }
             sessionStorage[ "do_not_send" ] = "";
@@ -530,5 +576,7 @@
                 return dmsg;
             }
         </script>
+        <div class="black-bg" onclick="modalVanish();"></div>
+        <div class="modal"></div>
     </body>
 </html>
