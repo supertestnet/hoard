@@ -346,6 +346,64 @@
           }
         });
       }
+      function dotLoop(string) {
+        if (!$('.dots')) {
+          setTimeout(function() {
+            dotLoop(string);
+          }, 1000);
+          return;
+        }
+        if (string.length < 3) {
+          string = string + ".";
+        } else {
+          string = ".";
+        }
+        $('.dots').innerText = string;
+        setTimeout(function() {
+          dotLoop(string);
+        }, 1000);
+      }
+      dotLoop(".");
+    </script>
+    <style>
+      .black-bg {
+        display: none;
+        width: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: black;
+        opacity: .5;
+        width: 100vw;
+        height: 100vh
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        box-sizing: border-box;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%,-50%);
+        width: 100%;
+        max-width: 560px;
+        background-color: white;
+        border-radius: 1rem;
+        padding: 20px;
+        color: black;
+        text-align: center
+      }
+    </style>
+    <script>
+      function modalVanish() {
+        $( ".black-bg" ).style.display = "none";
+        $( ".modal" ).style.display = "none";
+      }
+      function showModal( content ) {
+        $( ".modal" ).innerHTML = `<div style="position: absolute;right: 1rem;top: 0.5rem;font-size: 2rem; cursor: pointer;" onclick="modalVanish()">×</div>`;
+        $( ".modal" ).innerHTML += content;
+        $( ".black-bg" ).style.display = "block";
+        $( ".modal" ).style.display = "block";
+      }
     </script>
   </head>
   <body>
@@ -478,7 +536,8 @@
             var cpfp_seckey = new KeyPair( cpfp_privkey );
             var cpfp_pubkey = cpfp_seckey.pub.rawX;
             var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, addyprefix );
-            alert( `To get the clock ticking, this app must broadcast a transaction that moves your funds from the vault to a timelocked bitcoin address. That transaction will cost transaction fees which cannot be taken from the value in your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then click ok.` );
+            var modal_content = `<p>To get the clock ticking, this app must broadcast a transaction that moves your funds from the vault to a timelocked bitcoin address. That transaction will cost transaction fees which cannot be taken from the value in your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then you can X out of this popup.</p>`;
+            showModal( modal_content );
             // var cpfp_txid = prompt( `To get the clock ticking, this app must broadcast a transaction that moves your funds from the vault to a timelocked bitcoin address. That transaction will cost transaction fees which cannot be taken from the value in your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${cpfp_address} to use for transaction fees. Then enter the txid of that transaction.` );
             // var cpfp_vout = prompt( `Enter the vout` );
             // cpfp_vout = Number( cpfp_vout );
@@ -521,15 +580,15 @@
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
             // alert( `Broadcast this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
-            alert( `This app just broadcasted this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
-            alert( `Your browser will now wait for this transaction: https:/mempool.space/${mempoolNetwork}tx/${to_midstate_txid} to receive 2 confirmations. You can safely close this popup and wait or you can keep it open and click ok when you see the 2 confirmations are over. The app cannot close this popup for you.` );
+            var modal_content = `<p>This app just broadcasted this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}</p><p>Your browser will now wait it to receive 2 confirmations. You can check its confirmation status here: https:/mempool.space/${mempoolNetwork}tx/${to_midstate_txid} to receive 2 confirmations.</p><p>Waiting for confirmations<span class="dots">.</span></p>`;
+            showModal( modal_content );
             await waitForConfs( to_midstate_txid, 2, mempoolNetwork );
             // alert( `Click OK when this transaction: ${to_midstate_txid} has 2 confirmations` );
             await waitSomeSeconds( 2 );
             await pushBTCpmt( rawtx, mempoolNetwork );
-            //todo: show a waiting animation
             // alert( `Now broadcast this transaction to fully unvault your money: ${rawtx}` );
-            alert( `This app just broadcasted this transaction to fully unvault your money: ${rawtx}` );
+            var modal_content = `<p>This app just broadcasted this transaction to fully unvault your money: ${rawtx}</p>`;
+            showModal( modal_content );
             vault.setState( () => {vault.desired_state.splice( wallet.displayedCoin, 1 );vault.current_state.splice( wallet.displayedCoin, 1 );vault.spendingKeys.splice( wallet.displayedCoin, 1 );vault.covenantKeys.splice( wallet.displayedCoin, 1 );} );
             wallet.setState( () => wallet.displayedCoin = 0 );
           }
@@ -539,10 +598,13 @@
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
             //todo: only change the current state if you detect that the to_midstate transaction was broadcast
             vault.setState( () => vault.current_state[ wallet.displayedCoin ] = vault.current_state[ wallet.displayedCoin ] + 1 );
-            alert( `This app just broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}\n\nGo check your nostr dms. You should see a message from your watchtower notifying you that they saw your coins move and asking you to confirm it was you. If it was you, write them back; otherwise, they will broadcast your revault tx after a delay. Check your watchtower's website for more details.` );
+            var modal_content = `<p>This app just broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}\n\nGo check your nostr dms. You should see a message from your watchtower notifying you that they saw your coins move and asking you to confirm it was you. If it was you, write them back; otherwise, they will broadcast your revault tx after a delay. Check your watchtower's website for more details.</p>`;
+            showModal( modal_content );
             //todo: only change the desired state if you detect that the revault transaction & fee bumper was broadcast
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
-            alert( `Rest easy! 😌 Your money is in a different vault now and you alone can move it` );
+            await waitSomeSeconds( 5 );
+            var modal_content = `<p>Rest easy! 😌 Your money is in a different vault now and you alone can move it</p>`;
+            showModal( modal_content );
           }
           $( ".theft" ).onclick = async function() {
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
@@ -567,7 +629,8 @@
             var second_cpfp_seckey = new KeyPair( second_cpfp_privkey );
             var second_cpfp_pubkey = second_cpfp_seckey.pub.rawX;
             var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
-            alert( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address} to use for transaction fees. Then click ok.` );
+            var modal_content = `<p>This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address} to use for transaction fees. Then you can safely X out of this popup.</p>`;
+            showModal( modal_content );
             await loopTilAddressReceivesMoney(second_cpfp_address, true);
             await waitSomeSeconds(2);
             var txinfo = await addressReceivedMoneyInThisTx(second_cpfp_address);
@@ -611,10 +674,13 @@
             var rawtx = tapscript.Tx.encode( cpfp_tx );
             await pushBTCpmt( rawtx, mempoolNetwork );
             // alert( `Broadcast this transaction to bump the fee to put your money back in your vault: ${rawtx}` );
-            alert( `This app just broadcasted this transaction to bump the fee to put your money back in your vault: ${rawtx} -- it is safe to click ok` );
+            var modal_content = `<p>This app just broadcasted this transaction to bump the fee to put your money back in your vault: ${rawtx}</p>`;
+            showModal( modal_content );
+            await waitSomeSeconds( 5 );
             //todo: only change the desired state if you detect that the revault transaction & fee bumper was broadcast
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
-            alert( `Rest easy! 😌 Your money is in a different vault now and you alone can move it` );
+            var modal_content = `<p>Rest easy! 😌 Your money is in a different vault now and you alone can move it</p>`;
+            showModal( modal_content );
           }
           $( ".export_spending_keys" ).onclick = async function() {
             // spending keys = to_midstate & privkey & reused_pubkey
@@ -875,7 +941,8 @@
         vault.setState( () => {vault.privkey1 = "";vault.privkey2 = "";} );
         $( '.home' ).style.display = "none";
         wallet.setState( () => wallet.display = "display: block;" );
-        alert( `Success, your money is in the vault` );
+        var modal_content = `<p>Success, your money is in the vault</p>`;
+        showModal( modal_content );
       }
       if ( !localStorage[ "vault" ] ) {
         $( '.home' ).style.display = "none";
@@ -898,5 +965,7 @@
         wallet.setState( () => wallet.display = "display: block;" );
       }
     </script>
+    <div class="black-bg" onclick="modalVanish();"></div>
+    <div class="modal"></div>
   </body>
 </html>
