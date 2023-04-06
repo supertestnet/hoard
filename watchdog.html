@@ -117,6 +117,7 @@
                 }
                 var display_timelength = $('input[name="timelength"]:checked').id.replace( "_", " " );
                 alert( `Success! Once you click ok, this app will watch out for someone trying to unvault your money. If it sees that happening, it will notify you via nostr to ensure it’s you. If it’s not you (or you don’t respond), it will broadcast your revault transaction.` );
+                console.log( "looping")
                 await loopTilTxIsBroadcast( json[ "to_midstate_txid" ], network );
                 sendWarning( relay, network, json[ "to_midstate_txid" ], json.revault, pubkey, display_timelength );
                 if ( display_timelength == "1 minute" ) real_timelength = 60;
@@ -360,7 +361,7 @@
                 return bytesToHex( bech32.bech32.fromWords( bech32.bech32.decode( npub ).words ) );
             }
             function getTxidFromRawTx( rawtx ) {
-              return reverseHexString( sha256( hexToBytes( sha256( hexToBytes( tapscript.Tx.encode( tapscript.Tx.decode( rawtx ), true ) ) ) ) ) );
+              return reverseHexString( bytesToHex( sha256( sha256( hexToBytes( tapscript.Tx.encode( tapscript.Tx.decode( rawtx ), true ) ) ) ) ) );
             }
             function reverseHexString( s ) {
                 return s.match(/[a-fA-F0-9]{2}/g).reverse().join('');
