@@ -455,7 +455,7 @@
 
                 socket.addEventListener('open', async function( e ) {
                     console.log( "connected to " + relay )
-                    var subId   = bitcoinjs.ECPair.makeRandom().privateKey.toString( "hex" )
+                    var subId   = bitcoinjs.ECPair.makeRandom().privateKey.toString( "hex" ).substring( 0, 32 )
                     var filter  = { "#p": [ pubKey ] }
 
                     var subscription = [ "REQ", subId, filter ]
