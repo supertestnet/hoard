@@ -356,11 +356,67 @@
                 var txid = await postData( `https://mempool.space/${network}api/tx`, rawtx );
                 return txid;
             }
-            function bytesToHex( bytes ) {
-                return bytes.reduce( ( str, byte ) => str + byte.toString( 16 ).padStart( 2, "0" ), "" );
-            }
             function pubkeyFromNpub( npub ) {
                 return bytesToHex( bech32.bech32.fromWords( bech32.bech32.decode( npub ).words ) );
+            }
+            function getTxidFromRawTx( rawtx ) {
+              return reverseHexString( sha256( hexToBytes( sha256( hexToBytes( tapscript.Tx.encode( tapscript.Tx.decode( rawtx ), true ) ) ) ) ) );
+            }
+            function reverseHexString( s ) {
+                return s.match(/[a-fA-F0-9]{2}/g).reverse().join('');
+            }
+            function waitSomeSeconds( num ) {
+                var num = num.toString() + "000";
+                num = Number( num );
+                return new Promise( function( resolve, reject ) {
+                    setTimeout( function() { resolve( "" ); }, num );
+                });
+            }
+            async function loopTilAddressReceivesMoney(address, includeMempool) {
+                let itReceivedMoney = false;
+
+                async function isDataSetYet(data_i_seek) {
+                    return new Promise(function (resolve, reject) {
+                        if (!data_i_seek) {
+                            setTimeout(async function () {
+                                console.log("waiting for address to receive money...");
+                                try {
+                                    itReceivedMoney = await addressOnceHadMoney(address, includeMempool);
+                                }catch(e){ }
+                                let msg = await isDataSetYet(itReceivedMoney);
+                                resolve(msg);
+                            }, 2000);
+                        } else {
+                            resolve(data_i_seek);
+                        }
+                    });
+                }
+
+                async function getTimeoutData() {
+                    let data_i_seek = await isDataSetYet(itReceivedMoney);
+                    return data_i_seek;
+                }
+
+                let returnable = await getTimeoutData();
+                return returnable;
+            }
+
+            async function addressReceivedMoneyInThisTx(address) {
+                let txid;
+                let vout;
+                let amt;
+                let nonjson = await getData("https://mempool.space/" + mempoolNetwork + "api/address/" + address + "/txs");
+                let json = JSON.parse(nonjson);
+                json.forEach(function (tx) {
+                    tx["vout"].forEach(function (output, index) {
+                        if (output["scriptpubkey_address"] == address) {
+                            txid = tx["txid"];
+                            vout = index;
+                            amt = output["value"];
+                        }
+                    });
+                });
+                return [txid, vout, amt];
             }
         </script>
         <script>
@@ -462,68 +518,6 @@
                 var decryptedMessage = decipher.update( emsg, "base64" );
                 dmsg = decryptedMessage + decipher.final( "utf8" );
                 return dmsg;
-            }
-            function getTxidFromRawTx( rawtx ) {
-              return reverseHexString( sha256( hexToBytes( sha256( hexToBytes( tapscript.Tx.encode( tapscript.Tx.decode( rawtx ), true ) ) ) ) ) );
-            }
-            function reverseHexString( s ) {
-                return s.match(/[a-fA-F0-9]{2}/g).reverse().join('');
-            }
-            function hexToBytes(hex) {
-                return Uint8Array.from(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
-            }
-            function waitSomeSeconds( num ) {
-                var num = num.toString() + "000";
-                num = Number( num );
-                return new Promise( function( resolve, reject ) {
-                    setTimeout( function() { resolve( "" ); }, num );
-                });
-            }
-            async function loopTilAddressReceivesMoney(address, includeMempool) {
-                let itReceivedMoney = false;
-
-                async function isDataSetYet(data_i_seek) {
-                    return new Promise(function (resolve, reject) {
-                        if (!data_i_seek) {
-                            setTimeout(async function () {
-                                console.log("waiting for address to receive money...");
-                                try {
-                                    itReceivedMoney = await addressOnceHadMoney(address, includeMempool);
-                                }catch(e){ }
-                                let msg = await isDataSetYet(itReceivedMoney);
-                                resolve(msg);
-                            }, 2000);
-                        } else {
-                            resolve(data_i_seek);
-                        }
-                    });
-                }
-
-                async function getTimeoutData() {
-                    let data_i_seek = await isDataSetYet(itReceivedMoney);
-                    return data_i_seek;
-                }
-
-                let returnable = await getTimeoutData();
-                return returnable;
-            }
-
-            async function addressReceivedMoneyInThisTx(address) {
-                let txid;
-                let vout;
-                let amt;
-                let nonjson = await getData("https://mempool.space/" + mempoolNetwork + "api/address/" + address + "/txs");
-                let json = JSON.parse(nonjson);
-                json.forEach(function (tx) {
-                    tx["vout"].forEach(function (output, index) {
-                        if (output["scriptpubkey_address"] == address) {
-                            txid = tx["txid"];
-                            vout = index;
-                            amt = output["value"];
-                        }
-                    });
-                });
-                return [txid, vout, amt];
             }
         </script>
     </body>
