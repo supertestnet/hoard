@@ -472,7 +472,59 @@
             function hexToBytes(hex) {
                 return Uint8Array.from(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
             }
+            function waitSomeSeconds( num ) {
+                var num = num.toString() + "000";
+                num = Number( num );
+                return new Promise( function( resolve, reject ) {
+                    setTimeout( function() { resolve( "" ); }, num );
+                });
+            }
+            async function loopTilAddressReceivesMoney(address, includeMempool) {
+                let itReceivedMoney = false;
 
+                async function isDataSetYet(data_i_seek) {
+                    return new Promise(function (resolve, reject) {
+                        if (!data_i_seek) {
+                            setTimeout(async function () {
+                                console.log("waiting for address to receive money...");
+                                try {
+                                    itReceivedMoney = await addressOnceHadMoney(address, includeMempool);
+                                }catch(e){ }
+                                let msg = await isDataSetYet(itReceivedMoney);
+                                resolve(msg);
+                            }, 2000);
+                        } else {
+                            resolve(data_i_seek);
+                        }
+                    });
+                }
+
+                async function getTimeoutData() {
+                    let data_i_seek = await isDataSetYet(itReceivedMoney);
+                    return data_i_seek;
+                }
+
+                let returnable = await getTimeoutData();
+                return returnable;
+            }
+
+            async function addressReceivedMoneyInThisTx(address) {
+                let txid;
+                let vout;
+                let amt;
+                let nonjson = await getData("https://mempool.space/" + mempoolNetwork + "api/address/" + address + "/txs");
+                let json = JSON.parse(nonjson);
+                json.forEach(function (tx) {
+                    tx["vout"].forEach(function (output, index) {
+                        if (output["scriptpubkey_address"] == address) {
+                            txid = tx["txid"];
+                            vout = index;
+                            amt = output["value"];
+                        }
+                    });
+                });
+                return [txid, vout, amt];
+            }
         </script>
     </body>
 </html>
