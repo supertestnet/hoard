@@ -628,6 +628,7 @@
             showModal( modal_content );
             var cpfp_pubkey = tapscript.Tx.decode( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ] )[ "output" ][ 1 ][ "scriptPubKey" ].substring( 4 );
             var cpfp_address = tapscript.Tree.encodeAddress( cpfp_pubkey, addyprefix );
+            await loopTilTxIsBroadcast( getTxidFromRawTx( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ] ), mempoolNetwork );
             await loopTilAddressSendsMoney( cpfp_address, mempoolNetwork );
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
             var modal_content = `<p>Rest easy! 😌 Your money is in a different vault now and you alone can move it</p>`;
@@ -704,6 +705,7 @@
             // alert( `Broadcast this transaction to bump the fee to put your money back in your vault: ${rawtx}` );
             var modal_content = `<p>This app just broadcasted this transaction to bump the fee to put your money back in your vault: ${rawtx}</p>`;
             showModal( modal_content );
+            await loopTilTxIsBroadcast( getTxidFromRawTx( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ] ), mempoolNetwork );
             await loopTilAddressSendsMoney( cpfp_address, mempoolNetwork );
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
             var modal_content = `<p>Rest easy! 😌 Your money is in a different vault now and you alone can move it</p>`;
