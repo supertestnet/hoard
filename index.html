@@ -527,6 +527,7 @@
             // alert( `Click OK when this transaction: ${to_midstate_txid} has 2 confirmations` );
             await waitSomeSeconds( 2 );
             await pushBTCpmt( rawtx, mempoolNetwork );
+            //todo: show a waiting animation
             // alert( `Now broadcast this transaction to fully unvault your money: ${rawtx}` );
             alert( `This app just broadcasted this transaction to fully unvault your money: ${rawtx}` );
             vault.setState( () => {vault.desired_state.splice( wallet.displayedCoin, 1 );vault.current_state.splice( wallet.displayedCoin, 1 );vault.spendingKeys.splice( wallet.displayedCoin, 1 );vault.covenantKeys.splice( wallet.displayedCoin, 1 );} );
@@ -536,8 +537,10 @@
             var url = window.location.protocol + "//" + window.location.hostname + window.location.pathname + "watchdog.html";
             alert( `Click ok after you enter the following json object into a third party watchtower service such as Watchdog, which you can find here: ${url}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ] )}`);
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
+            //todo: only change the current state if you detect that the to_midstate transaction was broadcast
             vault.setState( () => vault.current_state[ wallet.displayedCoin ] = vault.current_state[ wallet.displayedCoin ] + 1 );
             alert( `This app just broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}\n\nGo check your nostr dms. You should see a message from your watchtower notifying you that they saw your coins move and asking you to confirm it was you. If it was you, write them back; otherwise, they will broadcast your revault tx after a delay. Check your watchtower's website for more details.` );
+            //todo: only change the desired state if you detect that the revault transaction & fee bumper was broadcast
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
             alert( `Rest easy! 😌 Your money is in a different vault now and you alone can move it` );
           }
@@ -545,6 +548,7 @@
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
             // alert( `Broadcast this tx to simulate a theft, then click ok: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
             alert( `This app just broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]} -- click ok to proceed with the next step` );
+            //todo: only change the current state if you detect that the to_midstate transaction was broadcast
             vault.setState( () => vault.current_state[ wallet.displayedCoin ] = vault.current_state[ wallet.displayedCoin ] + 1 );
             await pushBTCpmt( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ], mempoolNetwork );
             // alert( `Oh no! Someone other than you started the unvaulting procedure so they probably have one of your private keys! Broadcast this transaction to revault your money, then click ok: ${vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] - 1 ][ "revault" ]}` );
@@ -608,6 +612,7 @@
             await pushBTCpmt( rawtx, mempoolNetwork );
             // alert( `Broadcast this transaction to bump the fee to put your money back in your vault: ${rawtx}` );
             alert( `This app just broadcasted this transaction to bump the fee to put your money back in your vault: ${rawtx} -- it is safe to click ok` );
+            //todo: only change the desired state if you detect that the revault transaction & fee bumper was broadcast
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
             alert( `Rest easy! 😌 Your money is in a different vault now and you alone can move it` );
           }
