@@ -533,8 +533,10 @@
             wallet.setState( () => wallet.displayedCoin = 0 );
           }
           $( ".watchtower" ).onclick = () => {
-            alert( `Click ok after you paste the following json object into a third party watchtower service (such as Watchdog, which you can find here: ${"https://supertestnet.github.io/hoard/watchdog.html"}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ] )}`);
-            alert( `Now simulate a theft but do not click ok on the first popup, otherwise *you* will broadcast your revault transaction instead of letting the watchtower do it. Instead, after you click the button to simulate a theft and see the first popup, go check your nostr dms. You should see a message from your watchtower notifying you that they saw your coins move and asking you to confirm it was you. If it was you, write them back; otherwise, they will broadcast your revault tx after a delay. Check your watchtower's website for more details.` );
+            var url = window.location.protocol + "//" + window.location.hostname + window.location.pathname + "watchdog.html";
+            alert( `Click ok after you enter the following json object into a third party watchtower service such as Watchdog, which you can find here: ${url}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ] )}`);
+            await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
+            alert( `This app just broadcasted this tx to simulate a theft: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}\n\nGo check your nostr dms. You should see a message from your watchtower notifying you that they saw your coins move and asking you to confirm it was you. If it was you, write them back; otherwise, they will broadcast your revault tx after a delay. Check your watchtower's website for more details.` );
           }
           $( ".theft" ).onclick = async function() {
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
