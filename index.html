@@ -532,7 +532,7 @@
             vault.setState( () => {vault.desired_state.splice( wallet.displayedCoin, 1 );vault.current_state.splice( wallet.displayedCoin, 1 );vault.spendingKeys.splice( wallet.displayedCoin, 1 );vault.covenantKeys.splice( wallet.displayedCoin, 1 );} );
             wallet.setState( () => wallet.displayedCoin = 0 );
           }
-          $( ".watchtower" ).onclick = () => {
+          $( ".watchtower" ).onclick = async () => {
             var url = window.location.protocol + "//" + window.location.hostname + window.location.pathname + "watchdog.html";
             alert( `Click ok after you enter the following json object into a third party watchtower service such as Watchdog, which you can find here: ${url}\n\n${JSON.stringify( vault.covenantKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ] )}`);
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
