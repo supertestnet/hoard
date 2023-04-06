@@ -145,9 +145,9 @@
                     var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
                     var watchdog_address = second_cpfp_address;
                     alert( `This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, the watchtower service would do this with a pool of money funded by its service fees, but this is only a demo so there is no pool of money. Therefore, you must pay the fee. Send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address}, then click ok.` );
-                    await loopTilAddressReceivesMoney(second_cpfp_address, true);
+                    await loopTilAddressReceivesMoney(second_cpfp_address, network, true);
                     await waitSomeSeconds(2);
-                    var txinfo = await addressReceivedMoneyInThisTx(second_cpfp_address);
+                    var txinfo = await addressReceivedMoneyInThisTx(second_cpfp_address, network);
                     var cpfp_txid = txinfo[0];
                     var cpfp_vout = txinfo[1];
                     var cpfp_amt = txinfo[2];
@@ -373,7 +373,7 @@
                     setTimeout( function() { resolve( "" ); }, num );
                 });
             }
-            async function loopTilAddressReceivesMoney(address, includeMempool) {
+            async function loopTilAddressReceivesMoney(address, network, includeMempool) {
                 let itReceivedMoney = false;
 
                 async function isDataSetYet(data_i_seek) {
@@ -382,7 +382,7 @@
                             setTimeout(async function () {
                                 console.log("waiting for address to receive money...");
                                 try {
-                                    itReceivedMoney = await addressOnceHadMoney(address, includeMempool);
+                                    itReceivedMoney = await addressOnceHadMoney(address, network, includeMempool);
                                 }catch(e){ }
                                 let msg = await isDataSetYet(itReceivedMoney);
                                 resolve(msg);
@@ -401,12 +401,21 @@
                 let returnable = await getTimeoutData();
                 return returnable;
             }
-
-            async function addressReceivedMoneyInThisTx(address) {
+            async function addressOnceHadMoney(address, network, includeMempool) {
+                let url = "https://mempool.space/" + network + "api/address/" + address;
+                let nonjson = await getData(url);
+                if (!isValidJson(nonjson)) return false;
+                let json = JSON.parse(nonjson);
+                if (json["chain_stats"]["tx_count"] > 0 || (includeMempool && json["mempool_stats"]["tx_count"] > 0)) {
+                    return true;
+                }
+                return false;
+            }
+            async function addressReceivedMoneyInThisTx(address, network) {
                 let txid;
                 let vout;
                 let amt;
-                let nonjson = await getData("https://mempool.space/" + mempoolNetwork + "api/address/" + address + "/txs");
+                let nonjson = await getData("https://mempool.space/" + network + "api/address/" + address + "/txs");
                 let json = JSON.parse(nonjson);
                 json.forEach(function (tx) {
                     tx["vout"].forEach(function (output, index) {
