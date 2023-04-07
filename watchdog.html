@@ -188,7 +188,8 @@
                     var second_cpfp_pubkey = second_cpfp_seckey.pub.rawX;
                     var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
                     var watchdog_address = second_cpfp_address;
-                    var modal_content = `<p>This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, the watchtower service would do this with a pool of money funded by its service fees, but this is only a demo so there is no pool of money. Therefore, you must pay the fee. Send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address}, then you can X out of this popup.</p>`;
+                    //todo: add a qr code
+                    var modal_content = `<p>This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, your watchtower service would do this with a pool of money funded by the service's income, but this is only a demo so it has no income. Therefore, you must pay the fee. Send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address}, then you can X out of this popup.</p>`;
                     showModal( modal_content );
                     await loopTilAddressReceivesMoney(second_cpfp_address, network, true);
                     await waitSomeSeconds(2);
