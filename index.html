@@ -66,16 +66,20 @@
       if ( $_GET[ "network" ] == "signet" ) {
         mempoolNetwork = "signet/";
         addyprefix = "tb";
-        localStorage.clear();
-        alert( "Because you are running in signet mode, your browser's local storage has been cleared" );
+        if ( !$_GET[ "keep" ] ) {
+          localStorage.clear();
+          alert( "Because you are running in signet mode, your browser's local storage has been cleared" );
+        }
       }
       if ( $_GET[ "network" ] == "regtest" ) {
         mempoolNetwork = "signet/";
         addyprefix = "bcrt";
-        localStorage.clear();
-        alert( "Because you are running in regtest mode, your browser's local storage has been cleared" );
+        if ( !$_GET[ "keep" ] ) {
+          localStorage.clear();
+          alert( "Because you are running in regtest mode, your browser's local storage has been cleared" );
+        }
       }
-      if ( !$_GET[ "network" ] ) {
+      if ( !$_GET[ "network" ] && !$_GET[ "keep" ] ) {
         localStorage.clear();
         alert( "Because you are running in testnet mode, your browser's local storage has been cleared. To run on mainnet, add ?network=mainnet to the url." );
       }
@@ -214,7 +218,8 @@
       }
 
       async function addressOnceSentMoney( address, network ) {
-        var json = await getData( `https://mempool.space/${network}api/address/${address}` );
+        var nonjson = await getData( `https://mempool.space/${network}api/address/${address}` );
+        var json = JSON.parse( nonjson );
         if ( json[ "chain_stats" ][ "spent_txo_count" ] > 0 || json[ "mempool_stats" ][ "spent_txo_count" ] > 0 ) {
           return true;
         }
@@ -662,8 +667,6 @@
             var second_cpfp_seckey = new KeyPair( second_cpfp_privkey );
             var second_cpfp_pubkey = second_cpfp_seckey.pub.rawX;
             var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
-            //todo: return here and check if the qr code I added works
-            //todo: add a qr code
             var modal_content = `<p>This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. The money to bump your fees cannot come *from* your vault because of the way vaults work. Therefore, send precisely ${amount_to_ask_for} sats to this address for transaction fees:</p>`;
             var div = document.createElement( "div" );
             div.append( createQR( second_cpfp_address ) );
