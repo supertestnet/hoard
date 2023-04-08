@@ -11,6 +11,7 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
         <script src="https://bundle.run/noble-secp256k1@1.2.14"></script>
         <script src="https://bundle.run/browserify-cipher@1.0.1"></script>
+        <script src="https://supertestnet.github.io/bitcoin-chess/js/qrcode.js"></script>
         <style>
             * {
                 box-sizing: border-box;
@@ -85,10 +86,25 @@
                 $( ".modal" ).style.display = "none";
             }
             function showModal( content ) {
-                $( ".modal" ).innerHTML = `<div style="position: absolute;right: 1rem;top: 0.5rem;font-size: 2rem; cursor: pointer;" onclick="modalVanish()">×</div>`;
-                $( ".modal" ).innerHTML += content;
+                $( ".modal" ).innerHTML = `<div style="position: absolute;right: 1rem;top: 0.5rem;font-size: 2rem; cursor: pointer;" onclick="modalVanish()">&times;</div>`;
+                $( ".modal" ).innerHTML += `<div style="overflow-y: scroll; max-height: 80vh; margin-top: 1.5rem;">${content}</div>`;
                 $( ".black-bg" ).style.display = "block";
                 $( ".modal" ).style.display = "block";
+            }
+            function createQR(content) {
+                let dataUriPngImage = document.createElement("img"),
+                s = QRCode.generatePNG(content, {
+                    ecclevel: "M",
+                    format: "html",
+                    fillcolor: "#FFFFFF",
+                    textcolor: "#000000",
+                    margin: 4,
+                    modulesize: 8,
+                });
+                dataUriPngImage.src = s;
+                dataUriPngImage.id = "qr_code";
+                dataUriPngImage.style.maxWidth = "100%";
+                return dataUriPngImage;
             }
         </script>
     </head>
@@ -188,8 +204,11 @@
                     var second_cpfp_pubkey = second_cpfp_seckey.pub.rawX;
                     var second_cpfp_address = tapscript.Tree.encodeAddress( second_cpfp_pubkey, addyprefix );
                     var watchdog_address = second_cpfp_address;
-                    //todo: add a qr code
-                    var modal_content = `<p>This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, your watchtower service would do this with a pool of money funded by the service's income, but this is only a demo so it has no income. Therefore, you must pay the fee. Send precisely this amount: ${amount_to_ask_for} to this address: ${second_cpfp_address}, then you can X out of this popup.</p>`;
+                    var modal_content = `<p>This app broadcasted a transaction that moves your funds back into your vault, but that transaction might not confirm because its fees are very low. This app must bump them up. Ordinarily, your watchtower service would do this with a pool of money funded by the service's income, but this is only a demo so it has no income. Therefore, you must pay the fees. Send precisely ${amount_to_ask_for} sats to this address for transaction fees:</p>`;
+                    var div = document.createElement( "div" );
+                    div.append( createQR( second_cpfp_address ) );
+                    modal_content += div.innerHTML;
+                    modal_content += `<p>${second_cpfp_address}</p>`;
                     showModal( modal_content );
                     await loopTilAddressReceivesMoney(second_cpfp_address, network, true);
                     await waitSomeSeconds(2);
