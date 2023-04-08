@@ -424,8 +424,8 @@
         $( ".modal" ).style.display = "none";
       }
       function showModal( content ) {
-        $( ".modal" ).innerHTML = `<div style="position: absolute;right: 1rem;top: 0.5rem;font-size: 2rem; cursor: pointer;" onclick="modalVanish()">×</div>`;
-        $( ".modal" ).innerHTML += content;
+        $( ".modal" ).innerHTML = `<div style="position: absolute;right: 1rem;top: 0.5rem;font-size: 2rem; cursor: pointer;" onclick="modalVanish()">&times;</div>`;
+        $( ".modal" ).innerHTML += `<div style="overflow-y: scroll; max-height: 80vh; margin-top: 1.5rem;">${content}</div>`;
         $( ".black-bg" ).style.display = "block";
         $( ".modal" ).style.display = "block";
       }
