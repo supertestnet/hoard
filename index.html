@@ -58,6 +58,7 @@
       var $_GET = {}
       for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
       var mempoolNetwork = "testnet/"; //mainnet: "" testnet: "testnet/" signet: "signet/"
+      var btc_net = "mempool.space";
       var addyprefix = "tb"; //mainnet: "bc" testnet: "tb" signet: "tb"
       if ( $_GET[ "network" ] == "mainnet" ) {
         mempoolNetwork = "";
@@ -83,6 +84,15 @@
           alert( "Your browser's local storage has been cleared" );
         }
       }
+      if ( $_GET[ "network" ] == "mutinynet" ) {
+        btc_net = "mutinynet.com";
+        mempoolNetwork = "";
+        addyprefix = "tb";
+        if ( $_GET[ "reset" ] ) {
+          localStorage.clear();
+          alert( "Your browser's local storage has been cleared" );
+        }
+      }
       if ( !$_GET[ "network" ] && $_GET[ "reset" ] ) {
         localStorage.clear();
         alert( "Your browser's local storage has been cleared." );
@@ -93,7 +103,7 @@
     <script>
       //todo: listen for the to_midstate_tx on startup, users shouldn't have to hit that button
       async function pushBTCpmt( rawtx, network ) {
-        var txid = await postData( `https://mempool.space/${network}api/tx`, rawtx );
+        var txid = await postData( `https://${btc_net}/${network}api/tx`, rawtx );
         return txid;
       }
       async function postData( url, json, content_type = "", apikey = "" ) {
@@ -200,7 +210,7 @@
         let txid;
         let vout;
         let amt;
-        let nonjson = await getData("https://mempool.space/" + mempoolNetwork + "api/address/" + address + "/txs");
+        let nonjson = await getData(`https://${btc_net}/` + mempoolNetwork + "api/address/" + address + "/txs");
         let json = JSON.parse(nonjson);
         json.forEach(function (tx) {
           tx["vout"].forEach(function (output, index) {
@@ -225,7 +235,7 @@
       }
 
       async function addressOnceSentMoney( address, network ) {
-        var nonjson = await getData( `https://mempool.space/${network}api/address/${address}` );
+        var nonjson = await getData( `https://${btc_net}/${network}api/address/${address}` );
         var json = JSON.parse( nonjson );
         if ( json[ "chain_stats" ][ "spent_txo_count" ] > 0 || json[ "mempool_stats" ][ "spent_txo_count" ] > 0 ) {
           return true;
@@ -258,7 +268,7 @@
       }
 
       async function addressOnceHadMoney(address, includeMempool) {
-        let url = "https://mempool.space/" + mempoolNetwork + "api/address/" + address;
+        let url = `https://${btc_net}/` + mempoolNetwork + "api/address/" + address;
         let nonjson = await getData(url);
         if (!isValidJson(nonjson)) return false;
         let json = JSON.parse(nonjson);
@@ -315,7 +325,7 @@
               resolve( blockheight );
             }
           };
-          xhttp.open( "GET", `https://mempool.space/${network}api/blocks/tip/height`, true );
+          xhttp.open( "GET", `https://${btc_net}/${network}api/blocks/tip/height`, true );
           xhttp.send();
         });
       }
@@ -327,7 +337,7 @@
               setTimeout( async function() {
                 console.log( `checking if this tx: ${txid} is broadcast...` );
                 async function txIsBroadcast( txid, network ) {
-                  var tx = await getData( `https://mempool.space/${network}api/tx/${txid}` );
+                  var tx = await getData( `https://${btc_net}/${network}api/tx/${txid}` );
                   if ( tx == "Transaction not found" || tx == "error" ) return;
                   return true;
                 }
@@ -365,7 +375,7 @@
               }
             }
           };
-          xhttp.open( "GET", `https://mempool.space/${network}api/tx/` + txid, true );
+          xhttp.open( "GET", `https://${btc_net}/${network}api/tx/` + txid, true );
           xhttp.send();
         });
       }
@@ -621,7 +631,7 @@
             vault.setState( () => vault.desired_state[ wallet.displayedCoin ] = vault.desired_state[ wallet.displayedCoin ] + 1 );
             await pushBTCpmt( vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ], mempoolNetwork );
             // alert( `Broadcast this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}` );
-            var modal_content = `<p>This app just started the unvaulting procedure by broadcasting this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}</p><p>Your browser will now wait it to receive 2 confirmations before sending a followup transaction that fully unvaults your money and sends it where you said to send it. Do not close your browser. You can check the confirmation status of the above transaction <a href="https://mempool.space/${mempoolNetwork}tx/${to_midstate_txid}" target="_blank">here</a>.</p><p>Waiting for confirmations<span class="dots">.</span></p>`;
+            var modal_content = `<p>This app just started the unvaulting procedure by broadcasting this transaction: ${vault.spendingKeys[ wallet.displayedCoin ][ vault.current_state[ wallet.displayedCoin ] ][ "to_midstate" ]}</p><p>Your browser will now wait it to receive 2 confirmations before sending a followup transaction that fully unvaults your money and sends it where you said to send it. Do not close your browser. You can check the confirmation status of the above transaction <a href="https://${btc_net}/${mempoolNetwork}tx/${to_midstate_txid}" target="_blank">here</a>.</p><p>Waiting for confirmations<span class="dots">.</span></p>`;
             showModal( modal_content );
             await waitForConfs( to_midstate_txid, 2, mempoolNetwork );
             // alert( `Click OK when this transaction: ${to_midstate_txid} has 2 confirmations` );
