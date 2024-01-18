@@ -1,6 +1,11 @@
 # Hoard
 Bitcoin vaults without a soft fork
 
+# How to try it
+I recommend trying it on mutinynet (one of bitcoin's testnet networks) by clicking here: https://supertestnet.github.io/hoard/?network=mutinynet
+
+You can get some mutinynet coins from this faucet: https://faucet.mutinynet.com/
+
 # Vaults in three sentences
 
 You put your btc in a secure bitcoin address called a vault
