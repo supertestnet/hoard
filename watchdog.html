@@ -122,6 +122,7 @@
             <input type="radio" id="mainnet/" name="network"><label for="mainnet/">bitcoin mainnet</label><br>
             <input type="radio" id="signet/" name="network"><label for="signet/">bitcoin signet</label><br>
             <input type="radio" id="testnet/" name="network"><label for="testnet/">bitcoin testnet</label><br>
+            <input type="radio" id="mutinynet/" name="network"><label for="mutinynet/">bitcoin mutinynet</label><br>
         </form>
         <p>If we detect an unvault attempt, we will reach out to you on nostr to ask if it was you. How long should we wait for a response before broadcasting your revault transaction?</p>
         <form>
@@ -166,11 +167,16 @@
                     alert( "Please enter a valid covenant keys object" );
                     return;
                 }
+                var btc_net = "mempool.space";
                 var network = $('input[name="network"]:checked').id;
                 var addyprefix = "tb";
                 if ( network == "mainnet/" ) {
                     network = "";
                     addyprefix = "bc";
+                }
+                if ( network == "mutinynet/" ) {
+                    btc_net = "mutinynet.com";
+                    network = "";
                 }
                 var display_timelength = $('input[name="timelength"]:checked').id.replace( "_", " " );
                 var modal_content = `<p>Success! This app is now watching for someone trying to unvault your money. If it sees that happening, it will notify you via nostr to ensure it’s you. If it’s not you (or you don’t respond), it will broadcast your revault transaction. Feel free to X out of this popup if you want.</p>`;
@@ -400,7 +406,7 @@
                             setTimeout( async function() {
                                 console.log( "checking if tx is broadcast..." );
                                 async function txIsBroadcast( txid, network ) {
-                                    var tx = await getData( `https://mempool.space/${network}api/tx/${txid}` );
+                                    var tx = await getData( `https://${btc_net}/${network}api/tx/${txid}` );
                                     if ( tx == "Transaction not found" ) return;
                                     return true;
                                 }
@@ -421,7 +427,7 @@
                 return returnable;
             }
             async function pushBTCpmt( rawtx, network ) {
-                var txid = await postData( `https://mempool.space/${network}api/tx`, rawtx );
+                var txid = await postData( `https://${btc_net}/${network}api/tx`, rawtx );
                 return txid;
             }
             function pubkeyFromNpub( npub ) {
@@ -469,7 +475,7 @@
                 return returnable;
             }
             async function addressOnceHadMoney(address, network, includeMempool) {
-                let url = "https://mempool.space/" + network + "api/address/" + address;
+                let url = `https://${btc_net}/` + network + "api/address/" + address;
                 let nonjson = await getData(url);
                 if (!isValidJson(nonjson)) return false;
                 let json = JSON.parse(nonjson);
@@ -482,7 +488,7 @@
                 let txid;
                 let vout;
                 let amt;
-                let nonjson = await getData("https://mempool.space/" + network + "api/address/" + address + "/txs");
+                let nonjson = await getData(`https://${btc_net}/` + network + "api/address/" + address + "/txs");
                 let json = JSON.parse(nonjson);
                 json.forEach(function (tx) {
                     tx["vout"].forEach(function (output, index) {
@@ -529,7 +535,7 @@
                     console.log('Subscription:', subscription)
 
                     socket.send(JSON.stringify( subscription ));
-                    var message   = `Possible theft in action! This tx was broadcast: https://mempool.space/${network}tx/${txid} -- if you do not reply to us in ${timelength} we will broadcast this revault tx: 
+                    var message   = `Possible theft in action! This tx was broadcast: https://${btc_net}/${network}tx/${txid} -- if you do not reply to us in ${timelength} we will broadcast this revault tx: 
                     ${revault_tx}`;
                     var encrypted = encrypt( privKey, pubkey, message );
                     var event = {
